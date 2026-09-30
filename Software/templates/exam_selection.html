@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Exam Selection | Classroom Management{% endblock %}
+
+{% block content %}
+<p style="margin-bottom: 1rem;">
+    <a href="{{ url_for('cheating_detection') }}" style="color: var(--color-text-muted); text-decoration: none;">Cheating Detection</a> › Exam Selection
+</p>
+<h1 style="margin-bottom: 0.5rem;">Exam Selection</h1>
+<p class="lead" style="margin-bottom: 2rem;">Active and upcoming exam sessions</p>
+
+<div class="exam-list">
+    {% for exam in exams %}
+    <div class="exam-item">
+        <div class="exam-item-info">
+            <h3>{{ exam.course_name }} - Section {{ exam.section_number|default(1) }} — {{ exam.exam_name }}</h3>
+            <p>{{ exam.course_code }}{% if exam.scheduled_start %} • {{ exam.scheduled_start[:16].replace('T', ' ') }}{% endif %}{% if exam.location %} • {{ exam.location }}{% endif %}</p>
+        </div>
+        <div class="exam-item-actions">
+            {% if exam.status == 'active' %}
+            <span class="badge badge-active">Active</span>
+            <a href="{{ url_for('monitoring', exam_id=exam.id) }}" class="btn btn-primary">Monitor</a>
+            {% elif exam.status == 'scheduled' %}
+            <span class="badge badge-upcoming">Upcoming</span>
+            <a href="{{ url_for('camera_config', exam_id=exam.id) }}" class="btn btn-secondary">Configure</a>
+            {% else %}
+            <span class="badge badge-ended">Ended</span>
+            <a href="{{ url_for('report', exam_id=exam.id) }}" class="btn btn-secondary">View Report</a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <p style="color: var(--color-text-muted);">No exams found.</p>
+    {% endfor %}
+</div>
+{% endblock %}

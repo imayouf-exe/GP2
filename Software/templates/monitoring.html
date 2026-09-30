@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block body_class %}{% if selected_id %} page-monitoring-live{% endif %}{% endblock %}
+
+{% block title %}Active Monitoring | Classroom Management{% endblock %}
+
+{% block body %}
+{% if not selected_id %}
+<main id="main-content" class="main-content" tabindex="-1">
+    <p style="margin-bottom: 1rem;">
+        <a href="{{ url_for('cheating_detection') }}" style="color: var(--color-text-muted); text-decoration: none;">Cheating Detection</a> › Active Monitoring
+    </p>
+    <h1 style="margin-bottom: 1.5rem;">Active Monitoring</h1>
+
+    <p class="lead" style="margin-bottom: 2rem;">Select an exam to start monitoring</p>
+
+    <button class="btn btn-secondary" style="margin-bottom: 1.5rem;" onclick="addDebugExam()">+ Add Debug Exam</button>
+
+    <div class="dashboard-grid">
+        {% for e in exams %}
+        <a href="{{ url_for('monitoring', exam_id=e.id) }}" class="dashboard-card">
+            <h3>{{ e.course_name }} - Section {{ e.section_number|default(1) }} — {{ e.exam_name }}</h3>
+            <p>{{ e.course_code }}</p>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <span style="font-size: 0.85rem; color: var(--color-accent);">{{ e.status }}</span>
+            </div>
+        </a>
+        {% else %}
+        <p style="color: var(--color-text-muted);">No exams available.</p>
+        {% endfor %}
+    </div>
+</main>
+{% else %}
+<main id="main-content" class="main-content main-content--monitoring-live" tabindex="-1">
+    <header class="monitoring-live__toolbar">
+        <div class="monitoring-live__toolbar-meta">
+            <p class="monitoring-live__crumb">
+                <a href="{{ url_for('monitoring') }}">Active Monitoring</a> › {{ exam.course_name }} - Section {{ exam.section_number|default(1) }}
+            </p>
+            <h2 class="monitoring-live__title">{{ exam.course_name }} - Section {{ exam.section_number|default(1) }} — {{ exam.exam_name }}</h2>
+            <p id="statusText" class="monitoring-live__status">Ready</p>
+        </div>
+        <button type="button" id="examBtn" class="btn btn-primary monitoring-live__exam-btn" onclick="toggleExam()">Start the Exam</button>
+    </header>
+
+    <div class="monitoring-live__body">
+        <div class="monitoring-live__video-wrap">
+            <div class="monitoring-live__video-frame">
+                <div id="videoPlaceholder" class="video-placeholder monitoring-live__feed">Camera feed will appear here</div>
+                <img id="videoFeed" class="monitoring-live__feed" src="" alt="Live exam camera feed" style="display: none;">
+            </div>
+        </div>
+        <aside class="monitoring-live__alerts" aria-label="Exam alerts">
+            <h3 class="monitoring-live__alerts-title">Alerts</h3>
+            <div id="alertsList" class="monitoring-live__alerts-list">
+                <p id="noAlerts" class="monitoring-live__alerts-empty">No alerts yet.</p>
+            </div>
+        </aside>
+    </div>
+</main>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not selected_id %}
+<script>
+    function monitoringCsrfHeaders() {
+        var headers = { 'Content-Type': 'application/json' };
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = meta && meta.getAttribute('content');
+        if (token) {
+            headers['X-CSRF-Token'] = token;
+        }
+        return headers;
+    }
+
+    function addDebugExam() {
+        fetch('/api/debug/exam', {
+            method: 'POST',
+            headers: monitoringCsrfHeaders()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'created') {
+                alert('Debug exam created: ' + data.exam_name);
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error creating debug exam');
+        });
+    }
+</script>
+{% endif %}
+{% if selected_id %}
+<script>
+    var examRunning = false;
+    var examBtn = document.getElementById('examBtn');
+    var statusText = document.getElementById('statusText');
+    var videoFeed = document.getElementById('videoFeed');
+    var videoPlaceholder = document.getElementById('videoPlaceholder');
+    var alertsList = document.getElementById('alertsList');
+    var noAlerts = document.getElementById('noAlerts');
+    var alertInterval = null;
+    var examId = {{ exam.id }};
+
+    function monitoringCsrfHeaders() {
+        var headers = { 'Content-Type': 'application/json' };
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = meta && meta.getAttribute('content');
+        if (token) {
+            headers['X-CSRF-Token'] = token;
+        }
+        return headers;
+    }
+
+    function toggleExam() {
+        if (!examRunning) {
+            startExam();
+        } else {
+            stopExam();
+        }
+    }
+
+    function startExam() {
+        fetch('/api/exam/start', {
+            method: 'POST',
+            headers: monitoringCsrfHeaders(),
+            body: JSON.stringify({ exam_id: examId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            examRunning = true;
+            examBtn.textContent = 'End the Exam';
+            examBtn.style.background = 'var(--color-danger)';
+            statusText.textContent = 'Live';
+            statusText.style.color = 'var(--color-success)';
+            
+            videoPlaceholder.style.display = 'none';
+            videoFeed.style.display = 'block';
+            videoFeed.src = '/video_feed?' + new Date().getTime();
+            
+            alertInterval = setInterval(fetchAlerts, 1000);
+        })
+        .catch(err => {
+            console.error('Error starting exam:', err);
+            alert('Error starting exam. Check console.');
+        });
+    }
+
+    function stopExam() {
+        fetch('/api/exam/stop', {
+            method: 'POST',
+            headers: monitoringCsrfHeaders()
+        })
+        .then(response => response.json())
+        .then(data => {
+            examRunning = false;
+            examBtn.textContent = 'Start the Exam';
+            examBtn.style.background = '';
+            statusText.textContent = 'Exam ended — Video saved';
+            statusText.style.color = 'var(--color-text-muted)';
+            
+            videoFeed.style.display = 'none';
+            videoFeed.src = '';
+            videoPlaceholder.style.display = 'flex';
+            videoPlaceholder.textContent = 'Recording saved';
+            
+            if (alertInterval) {
+                clearInterval(alertInterval);
+                alertInterval = null;
+            }
+        })
+        .catch(err => {
+            console.error('Error stopping exam:', err);
+        });
+    }
+
+    function fetchAlerts() {
+        fetch('/api/alerts')
+        .then(response => response.json())
+        .then(alerts => {
+            if (alerts.length > 0) {
+                noAlerts.style.display = 'none';
+                /* Newest last (chat-style); API returns newest-first */
+                var ordered = alerts.slice().reverse();
+
+                var html = '';
+                ordered.forEach(function(alert) {
+                    var dangerClass = alert.is_danger ? 'danger' : '';
+                    html += '<div class="alert-item ' + dangerClass + '">';
+                    html += '<span class="alert-time">' + alert.time + '</span>';
+                    html += '<p class="alert-text"><strong>' + alert.label + '</strong></p>';
+                    html += '</div>';
+                });
+                
+                var existingAlerts = alertsList.querySelectorAll('.alert-item');
+                existingAlerts.forEach(function(el) { el.remove(); });
+                alertsList.insertAdjacentHTML('beforeend', html);
+                alertsList.scrollTop = alertsList.scrollHeight;
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching alerts:', err);
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Global Calendar | Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div>
+        <h1 style="margin-bottom: 0.5rem;">Calendar</h1>
+        <p class="lead">Manage schedules, deadlines, and reminders</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-secondary" onclick="calendar.prev()" style="padding: 0.5rem 1rem;">← Prev</button>
+        <button class="btn btn-secondary" onclick="calendar.today()" style="padding: 0.5rem 1rem;">Today</button>
+        <button class="btn btn-secondary" onclick="calendar.next()" style="padding: 0.5rem 1rem;">Next →</button>
+        <select id="viewSelector" onchange="changeView(this.value)" style="padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); margin-left: 1rem;">
+            <option value="month">Month</option>
+            <option value="week">Week</option>
+            <option value="day">Day</option>
+        </select>
+    </div>
+</div>
+
+<!-- Calendar Type Tab (Global only for admin) -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+    <button class="btn calendar-tab active" style="padding: 0.6rem 1.2rem;">
+        Global Calendar
+    </button>
+</div>
+
+<!-- Legend -->
+<div id="legendCourse" style="display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.85rem; flex-wrap: wrap;">
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #0ea5e9; border-radius: 3px; margin-right: 0.4rem;"></span>Announcement</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #8b5cf6; border-radius: 3px; margin-right: 0.4rem;"></span>Reminder</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #6b7280; border-radius: 3px; margin-right: 0.4rem;"></span>Other</span>
+</div>
+
+<!-- Add Event button row (matches teacher when on writable calendar) -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+    <button id="addEventBtn" class="btn" style="padding: 0.5rem 1rem;">+ Add Event</button>
+</div>
+
+<div id="calendarHeader" style="text-align: center; margin-bottom: 1rem;">
+    <h2 id="currentRange" style="font-size: 1.5rem; font-weight: 600;"></h2>
+</div>
+
+<div id="calendar" style="height: 650px; background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border);"></div>
+
+<!-- Event Detail Popup -->
+<div id="eventDetailPopup" style="display: none; position: fixed; z-index: 2000; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.25rem; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+    <h3 id="eventDetailTitle" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;"></h3>
+    <p id="eventDetailDate" style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--color-text-muted);"></p>
+    <div id="eventDetailMeta" style="margin-bottom: 1rem; font-size: 0.9rem;"></div>
+    <div style="display: flex; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border);">
+        <button type="button" id="eventDetailDelete" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem; background: var(--color-danger, #dc2626); color: white;">Delete</button>
+    </div>
+</div>
+<div id="eventDetailOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999;"></div>
+
+<!-- Add Event Modal -->
+<div id="eventModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--color-surface); padding: 2rem; border-radius: var(--radius); width: 100%; max-width: 500px; border: 1px solid var(--color-border); max-height: 90vh; overflow-y: auto;">
+        <h3 style="margin-bottom: 1.5rem;">Add Global Event</h3>
+        <form id="eventForm">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Event Type</label>
+                <select id="eventType" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="announcement">Announcement</option>
+                    <option value="reminder">Reminder</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Title *</label>
+                <input type="text" id="eventTitle" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Date *</label>
+                <input type="date" id="eventDate" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Start Time*</label>
+                    <input type="text" id="eventStartTime" required placeholder="09:00" title="24-hour format, e.g. 21:00 for 9 PM" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">End Time*</label>
+                    <input type="text" id="eventEndTime" required placeholder="11:00" title="24-hour format, e.g. 23:00 for 11 PM" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Location</label>
+                <select id="eventLocation" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">Select classroom (optional)</option>
+                    {% for c in classrooms %}
+                    <option value="{{ c.id }}" data-name="{{ c.name }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">URL (optional)</label>
+                <input type="url" id="eventUrl" placeholder="https://..." style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description (optional)</label>
+                <textarea id="eventDescription" rows="2" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn">Add Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar-hover.css') }}">
+<style>
+    .toastui-calendar-popup-overlay { background: rgba(0, 0, 0, 0.6) !important; }
+    .toastui-calendar-popup-container { background: #1a1a2e !important; border: 1px solid #2d2d44 !important; border-radius: 8px !important; box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important; }
+    .toastui-calendar-popup-container * { color: #e0e0e8 !important; }
+    .toastui-calendar-detail-container { background: #1a1a2e !important; }
+    .toastui-calendar-popup-section, .toastui-calendar-popup-detail, .toastui-calendar-popup-detail-item-separate { border-color: #2d2d44 !important; }
+    .toastui-calendar-see-more-container { background: #1a1a2e !important; border: 1px solid #2d2d44 !important; border-radius: 8px !important; }
+    .toastui-calendar-month-see-more-header { background: #252538 !important; border-bottom: 1px solid #2d2d44 !important; }
+    .toastui-calendar-template-monthDayName { color: #a0a0b0 !important; }
+    .calendar-tab { transition: all 0.2s ease; }
+    .calendar-tab.active { background: #4f46e5 !important; border-color: #4f46e5 !important; }
+</style>
+<script src="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.js"></script>
+<script>
+    var Calendar = tui.Calendar;
+    var calendar = new Calendar('#calendar', {
+        defaultView: 'month',
+        usageStatistics: false,
+        useDetailPopup: false,
+        useFormPopup: false,
+        isReadOnly: false,
+        gridSelection: true,
+        timezone: { zones: [{ timezoneName: Intl.DateTimeFormat().resolvedOptions().timeZone }] },
+        template: {
+            time: function(event) {
+                var start = new Date(event.start);
+                return String(start.getHours()).padStart(2,'0') + ':' + String(start.getMinutes()).padStart(2,'0') + ' ' + event.title;
+            },
+            allday: function(event) { return event.title; },
+            timegridDisplayPrimaryTime: function(props) {
+                var hour = (props && props.time && typeof props.time.getHours === 'function') ? props.time.getHours() : 0;
+                return String(hour).padStart(2,'0') + ':00';
+            }
+        },
+        week: { startDayOfWeek: 0, dayNames: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], taskView: false, eventView: ['allday','time'], hourStart: 0, hourEnd: 24 },
+        month: { startDayOfWeek: 0, dayNames: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] },
+        calendars: [{ id: 'events', name: 'Events', backgroundColor: '#4f46e5', borderColor: '#4f46e5' }],
+        theme: {
+            common: {
+                backgroundColor: '#1a1a2e',
+                border: '1px solid #2d2d44',
+                gridSelection: { backgroundColor: 'rgba(79, 70, 229, 0.3)', border: '1px solid #4f46e5' },
+                dayName: { color: '#a0a0b0' },
+                today: { color: '#4f46e5' }
+            },
+            month: {
+                dayName: { backgroundColor: '#1a1a2e', borderLeft: '1px solid #2d2d44', borderTop: '1px solid #2d2d44' },
+                dayExceptThisMonth: { color: '#4a4a5a' },
+                moreView: { backgroundColor: '#252538', border: '1px solid #2d2d44' },
+                moreViewTitle: { backgroundColor: '#1a1a2e' },
+                weekend: { backgroundColor: '#1f1f32' }
+            },
+            week: {
+                dayName: { backgroundColor: '#1a1a2e', borderTop: '1px solid #2d2d44', borderBottom: '1px solid #2d2d44', borderLeft: '1px solid #2d2d44' },
+                dayGrid: { borderRight: '1px solid #2d2d44' },
+                dayGridLeft: { backgroundColor: '#1a1a2e', borderRight: '1px solid #2d2d44' },
+                timeGrid: { borderRight: '1px solid #2d2d44' },
+                timeGridLeft: { backgroundColor: '#1a1a2e', borderRight: '1px solid #2d2d44' },
+                timeGridHalfHourLine: { borderBottom: '1px dotted #2d2d44' },
+                timeGridHourLine: { borderBottom: '1px solid #2d2d44' },
+                nowIndicatorLabel: { color: '#4f46e5' },
+                pastTime: { color: '#6a6a7a' },
+                futureTime: { color: '#a0a0b0' },
+                weekend: { backgroundColor: '#1f1f32' },
+                today: { backgroundColor: 'rgba(79, 70, 229, 0.1)' }
+            }
+        }
+    });
+
+    var eventColors = { exam:'#4f46e5', announcement:'#0ea5e9', assignment:'#f59e0b', deadline:'#ef4444', class:'#10b981', reminder:'#8b5cf6', other:'#6b7280' };
+    var currentClickedEvent = null;
+
+    function updateHeader() {
+        var range = calendar.getDate();
+        var view = calendar.getViewName();
+        var text = '';
+        if (view === 'month') {
+            text = range.toDate().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        } else if (view === 'week') {
+            var start = calendar.getDateRangeStart().toDate();
+            var end = calendar.getDateRangeEnd().toDate();
+            text = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' - ' + end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else {
+            text = range.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        }
+        document.getElementById('currentRange').textContent = text;
+    }
+    function changeView(v) { calendar.changeView(v); updateHeader(); setTimeout(scrollToTop, 150); }
+    function scrollToTop() { document.querySelectorAll('#calendar *').forEach(function(el){ if(el.scrollTop>0) el.scrollTop=0; }); }
+
+    calendar.on('selectDateTime', function(e) {
+        var startDate = new Date(e.start);
+        var endDate = new Date(e.end);
+        if (startDate.getHours() === 0 && startDate.getMinutes() === 0 && endDate.getHours() === 0 && endDate.getMinutes() === 0) {
+            startDate.setHours(9, 0, 0);
+            endDate = new Date(startDate);
+            endDate.setHours(11, 0, 0);
+        }
+        document.getElementById('eventDate').value = formatDate(startDate);
+        document.getElementById('eventStartTime').value = formatTime(startDate);
+        document.getElementById('eventEndTime').value = formatTime(endDate);
+        document.getElementById('eventModal').style.display = 'flex';
+        calendar.clearGridSelections();
+    });
+
+    function formatDate(d) {
+        var year = d.getFullYear();
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+    function formatTime(d) {
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    var lastDetailPopupAt = 0;
+    var lastDetailPopupKey = '';
+
+    calendar.on('clickEvent', function(e) {
+        currentClickedEvent = e.event;
+        showEventDetailPopup(e.event, e.nativeEvent);
+    });
+
+    (function attachMonthEventTapFix() {
+        var el = document.getElementById('calendar');
+        if (!el) return;
+        var press = null;
+        var MAX_MOVE_PX = 14;
+        el.addEventListener('pointerdown', function(ev) {
+            if (ev.button !== 0 || calendar.getViewName() !== 'month') {
+                press = null;
+                return;
+            }
+            var block = ev.target.closest && ev.target.closest('.toastui-calendar-weekday-event-block');
+            if (!block) {
+                press = null;
+                return;
+            }
+            press = {
+                x: ev.clientX,
+                y: ev.clientY,
+                id: block.getAttribute('data-event-id'),
+                calId: block.getAttribute('data-calendar-id') || 'events'
+            };
+        }, true);
+        el.addEventListener('pointerup', function(ev) {
+            if (ev.button !== 0 || !press || calendar.getViewName() !== 'month') {
+                press = null;
+                return;
+            }
+            var dx = ev.clientX - press.x;
+            var dy = ev.clientY - press.y;
+            if (Math.sqrt(dx * dx + dy * dy) > MAX_MOVE_PX) {
+                press = null;
+                return;
+            }
+            var evObj = calendar.getEvent(press.id, press.calId);
+            if (!evObj && press.id != null && String(press.id).trim() !== '' && !isNaN(Number(press.id))) {
+                evObj = calendar.getEvent(Number(press.id), press.calId);
+            }
+            press = null;
+            if (!evObj) return;
+            currentClickedEvent = evObj;
+            showEventDetailPopup(evObj, ev);
+        }, true);
+    })();
+
+    function showEventDetailPopup(ev, nativeEv) {
+        var dedupeKey = String(ev.id) + '|' + String(ev.calendarId || 'events');
+        var now = Date.now();
+        if (dedupeKey === lastDetailPopupKey && now - lastDetailPopupAt < 320) return;
+        lastDetailPopupKey = dedupeKey;
+        lastDetailPopupAt = now;
+
+        var evType = ev.event_type || (ev.raw && ev.raw.event_type);
+        var metaHtml = '';
+        if (evType) {
+            var c = eventColors[evType] || '#6b7280';
+            metaHtml = '<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';vertical-align:middle;margin-right:8px"></span>' + evType.charAt(0).toUpperCase() + evType.slice(1) + '</div>';
+        }
+        var url = (ev.raw && ev.raw.url) || ev.url;
+        if (url) {
+            var safeUrl = String(url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            var displayUrl = (url.length > 50 ? url.substring(0,50) + '...' : url).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            metaHtml += '<div style="margin-top:0.5rem;"><a href="' + safeUrl + '" target="_blank" rel="noopener" style="color:#4f46e5;">' + displayUrl + '</a></div>';
+        }
+        document.getElementById('eventDetailTitle').textContent = ev.title || '';
+        var start = new Date(ev.start), end = new Date(ev.end);
+        document.getElementById('eventDetailDate').textContent = start.toLocaleDateString('en-GB', {year:'numeric',month:'2-digit',day:'2-digit'}) + ' ' + String(start.getHours()).padStart(2,'0') + ':' + String(start.getMinutes()).padStart(2,'0') + ' – ' + String(end.getHours()).padStart(2,'0') + ':' + String(end.getMinutes()).padStart(2,'0');
+        document.getElementById('eventDetailMeta').innerHTML = metaHtml || '—';
+        var popup = document.getElementById('eventDetailPopup');
+        var overlay = document.getElementById('eventDetailOverlay');
+        popup.style.display = 'block';
+        overlay.style.display = 'block';
+        var rect = popup.getBoundingClientRect();
+        var x = nativeEv && nativeEv.clientX ? Math.min(nativeEv.clientX, window.innerWidth - rect.width - 20) : (window.innerWidth - rect.width) / 2;
+        var y = nativeEv && nativeEv.clientY ? Math.min(nativeEv.clientY + 10, window.innerHeight - rect.height - 20) : (window.innerHeight - rect.height) / 2;
+        popup.style.left = Math.max(20, x) + 'px';
+        popup.style.top = Math.max(20, y) + 'px';
+        document.getElementById('eventDetailDelete').onclick = function() {
+            hideEventDetailPopup();
+            deleteEvent(ev.id);
+        };
+        overlay.onclick = hideEventDetailPopup;
+    }
+    function hideEventDetailPopup() {
+        document.getElementById('eventDetailPopup').style.display = 'none';
+        document.getElementById('eventDetailOverlay').style.display = 'none';
+    }
+
+    function deleteEvent(id) {
+        if (!confirm('Delete this event?')) return;
+        fetch('/api/calendar/events/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+            .then(function(r){ if (!r.ok) return r.json().then(function(d){ throw new Error(d.error || 'Delete failed'); }); return r.json(); })
+            .then(function(){ calendar.deleteEvent(id, 'events'); currentClickedEvent = null; loadEvents(); })
+            .catch(function(err){ alert('Error: ' + err.message); });
+    }
+
+    document.getElementById('addEventBtn').onclick = function() {
+        var d = new Date();
+        document.getElementById('eventDate').value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        document.getElementById('eventStartTime').value = '09:00';
+        document.getElementById('eventEndTime').value = '11:00';
+        document.getElementById('eventModal').style.display = 'flex';
+    };
+
+    function closeModal() {
+        document.getElementById('eventModal').style.display = 'none';
+        document.getElementById('eventForm').reset();
+    }
+
+    document.getElementById('eventForm').onsubmit = function(e) {
+        e.preventDefault();
+        var title = document.getElementById('eventTitle').value;
+        var date = document.getElementById('eventDate').value;
+        var st = document.getElementById('eventStartTime').value;
+        var et = document.getElementById('eventEndTime').value;
+        if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(st) || !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(et)) {
+            alert('Use 24hr time (e.g. 09:00)');
+            return;
+        }
+        var start = date + 'T' + st, end = date + 'T' + et;
+        if (new Date(start) < new Date()) {
+            alert('Cannot create an event in the past.');
+            return;
+        }
+        var eventType = document.getElementById('eventType').value;
+        var locSel = document.getElementById('eventLocation');
+        var classroomId = locSel.value ? parseInt(locSel.value, 10) : null;
+        var location = locSel.selectedIndex > 0 ? locSel.options[locSel.selectedIndex].getAttribute('data-name') : '';
+        var payload = { title: title, event_type: eventType, calendar_type: 'global', start: start, end: end, description: document.getElementById('eventDescription').value, location: location, classroom_id: classroomId, url: document.getElementById('eventUrl').value || null };
+        fetch('/api/calendar/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(function(data) {
+            if (data.error) { alert(data.error); return; }
+            var c = eventColors[eventType] || '#6b7280';
+            calendar.createEvents([{ id: String(data.id), calendarId: 'events', title: title, start: new Date(start), end: new Date(end), backgroundColor: c, borderColor: c, isAllday: false, category: 'time', event_type: eventType, raw: { event_type: eventType } }]);
+            closeModal();
+        });
+    };
+
+    function loadEvents() {
+        fetch('/api/calendar/events?type=global').then(r => r.json()).then(function(events) {
+            if (!Array.isArray(events)) return;
+            calendar.clear();
+            var evs = events.map(function(e) {
+                var c = eventColors[e.event_type] || eventColors.other || '#6b7280';
+                var sd = new Date(e.start), ed = new Date(e.end);
+                var isAll = sd.getHours() === 0 && sd.getMinutes() === 0 && ed.getHours() === 0 && ed.getMinutes() === 0;
+                return { id: String(e.id), calendarId: 'events', title: e.title, start: sd, end: ed, location: e.location || '', backgroundColor: c, borderColor: c, isAllday: isAll, category: isAll ? 'allday' : 'time', event_type: e.event_type, url: e.url, raw: { event_type: e.event_type, url: e.url } };
+            });
+            calendar.createEvents(evs);
+        });
+    }
+
+    updateHeader();
+    loadEvents();
+</script>
+{% endblock %}

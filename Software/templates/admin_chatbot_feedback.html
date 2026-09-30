@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Chatbot Feedback | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">Chatbot Feedback</h1>
+<p class="lead" style="margin-bottom: 1rem;"></p>
+
+<div class="card admin-filter-bar js-admin-feedback-filters" style="margin-bottom: 1rem;">
+    <a class="btn {% if not only_negative and not workflow %}btn-primary{% else %}btn-ghost{% endif %}" href="{{ url_for('admin_chatbot_feedback') }}">All votes</a>
+    <a class="btn {% if only_negative and not workflow %}btn-primary{% else %}btn-ghost{% endif %}" href="{{ url_for('admin_chatbot_feedback') }}?only=negative">Only downvotes</a>
+    <a class="btn {% if workflow == 'needs_intent' %}btn-primary{% else %}btn-ghost{% endif %}" href="{{ url_for('admin_chatbot_feedback') }}?workflow=needs_intent">Needs Intent</a>
+    <a class="btn {% if workflow == 'needs_ui_flow' %}btn-primary{% else %}btn-ghost{% endif %}" href="{{ url_for('admin_chatbot_feedback') }}?workflow=needs_ui_flow">Needs UI Flow</a>
+</div>
+
+<div class="card">
+    {% if not entries %}
+    <p style="color: var(--color-text-muted);">No thumbs up/down yet.</p>
+    {% else %}
+    <div style="display:flex; flex-direction:column; gap:0.9rem;">
+        {% for e in entries %}
+        <div style="border:1px solid var(--color-border); border-radius:12px; padding:0.85rem;">
+            <div style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.35rem;">
+                {{ e['created_at'] }} • {{ e['role'] or 'unknown' }} • {{ e['full_name'] or 'Unknown user' }}
+                {% if e['email'] %}({{ e['email'] }}){% endif %}
+            </div>
+            <div><strong>User:</strong> {{ e['user_message'] }}</div>
+            <div style="margin-top:0.25rem;"><strong>Bot:</strong> {{ e['bot_reply'] }}</div>
+            <div style="margin-top:0.35rem; font-size:0.85rem; color:var(--color-text-muted);">
+                Vote: {{ e['feedback'] }} |
+                Confidence: {{ e['confidence'] or 'n/a' }} |
+                Sources: {{ e['sources'] or 'n/a' }}
+            </div>
+            <div style="margin-top:0.35rem; font-size:0.85rem;">
+                <strong>Workflow:</strong>
+                {{ e['review_status'] or 'new' }}
+                {% if e['review_action'] %} ({{ e['review_action'] }}){% endif %}
+                {% if e['reviewed_at'] %} • {{ e['reviewed_at'] }}{% endif %}
+            </div>
+            {% if e['note'] %}
+            <div style="margin-top:0.35rem; font-size:0.85rem;">
+                <strong>Note:</strong> {{ e['note'] }}
+            </div>
+            {% endif %}
+            {% if e['review_note'] %}
+            <div style="margin-top:0.35rem; font-size:0.85rem;">
+                <strong>Review note:</strong> {{ e['review_note'] }}
+            </div>
+            {% endif %}
+            <form method="post" style="margin-top:0.55rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                <input type="hidden" name="feedback_id" value="{{ e['id'] }}">
+                <select class="form-input" name="review_action" style="max-width:220px;">
+                    <option value="fixed_kb">fixed in KB</option>
+                    <option value="needs_intent">needs intent</option>
+                    <option value="needs_ui_flow">needs UI flow</option>
+                    <option value="ignore">ignore</option>
+                </select>
+                <input class="form-input" type="text" name="review_note" placeholder="Optional triage note" style="max-width:320px;">
+                <button type="submit" class="btn btn-primary">Save Review</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var bar = document.querySelector('.js-admin-feedback-filters');
+    if (!bar) return;
+    bar.querySelectorAll('a[href]').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.replace(this.href);
+        });
+    });
+})();
+</script>
+{% endblock %}

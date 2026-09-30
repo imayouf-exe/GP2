@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}Chatbot | Classroom Management{% endblock %}
+
+{% block content %}
+<div class="chatbot-page">
+    <h1 style="margin-bottom: 0.5rem;">AI Assistant</h1>
+    <p class="lead" style="margin-bottom: 1.5rem;">
+        {% if role == 'teacher' %}
+            Schedule classes, check room availability, and manage your calendar.
+        {% else %}
+            Ask questions about exams, schedules, or the platform.
+        {% endif %}
+    </p>
+
+    <div class="chat-container card">
+        <div class="chat-quick-actions">
+            {% if role == 'teacher' %}
+            <button type="button" class="chat-chip" data-msg="What are my upcoming exams?">My exams</button>
+            <button type="button" class="chat-chip" data-msg="What classes do I have this week?">My classes</button>
+            <button type="button" class="chat-chip" data-msg="List my courses">My courses</button>
+            {% if teacher_courses %}
+            <button type="button" class="chat-chip" data-intent="enrollment">Enrollment</button>
+            {% endif %}
+            <button type="button" class="chat-chip" data-msg="Any announcements or reminders for me?">Announcements</button>
+            <button type="button" class="chat-chip" data-intent="rooms_available">Rooms available</button>
+            <button type="button" class="chat-chip" data-intent="check_conflict">Check room conflict</button>
+            {% if teacher_courses %}
+            <button type="button" class="chat-chip" data-intent="who_teaches">Who teaches</button>
+            {% endif %}
+            {% else %}
+            <button type="button" class="chat-chip" data-msg="What are my upcoming exams?">My exams</button>
+            <button type="button" class="chat-chip" data-msg="What classes do I have this week?">My classes</button>
+            <button type="button" class="chat-chip" data-msg="What do I have today?">Today's schedule</button>
+            <button type="button" class="chat-chip" data-msg="List my courses">My courses</button>
+            {% if student_courses %}
+            <button type="button" class="chat-chip" data-intent="who_teaches">Who teaches</button>
+            <button type="button" class="chat-chip" data-msg="Where is my next exam?">Exam location</button>
+            <button type="button" class="chat-chip" data-msg="When does {{ student_courses[0]['course_code'] }} meet?">Course schedule</button>
+            {% endif %}
+            <button type="button" class="chat-chip" data-msg="Any announcements or reminders for me?">Announcements</button>
+            <button type="button" class="chat-chip" data-intent="rooms_available">Rooms available</button>
+            <button type="button" class="chat-chip" data-intent="check_conflict">Check room conflict</button>
+            {% endif %}
+        </div>
+        <div class="chat-messages" id="chatMessages" data-user-id="{{ session.get('user_id', '') }}" data-role="{{ role|default('student') }}" data-user-name="{{ user_name|e }}">
+        </div>
+
+        <form class="chat-input-form chat-input-shell" id="chatForm">
+            <textarea
+                class="form-input chat-input chat-input-textarea"
+                id="chatInput"
+                placeholder="Type a message..."
+                rows="1"
+            ></textarea>
+            <button type="submit" class="chat-send-btn" id="chatSend" aria-label="Send message">
+                <span class="chat-send-icon chat-send-icon--arrow" id="chatSendArrow">↑</span>
+                <span class="chat-send-icon chat-send-icon--stop" id="chatSendStop" aria-hidden="true"></span>
+            </button>
+        </form>
+        <div class="chat-course-picker" id="chatCoursePicker" style="display:none; padding: 0.55rem 0.9rem 0.75rem; border-top: 1px solid var(--color-border);">
+            <div style="font-size: 0.78rem; color: var(--color-text-muted); margin-bottom: 0.45rem;">Choose a course:</div>
+            <div id="chatCoursePickerItems" style="display:flex; gap:0.45rem; flex-wrap:wrap;"></div>
+        </div>
+        <div class="chat-course-picker" id="chatAssistPicker" style="display:none; padding: 0.55rem 0.9rem 0.75rem; border-top: 1px solid var(--color-border);">
+            <div id="chatAssistPickerTitle" style="font-size: 0.78rem; color: var(--color-text-muted); margin-bottom: 0.45rem;"></div>
+            <div id="chatAssistPickerBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('chatInput');
+    const messagesEl = document.getElementById('chatMessages');
+    const sendBtn = document.getElementById('chatSend');
+    const STORAGE_KEY = 'chatbot_' + (messagesEl.dataset.userId || 'anon');
+    const MAX_MESSAGES = 100;
+    const sendArrow = document.getElementById('chatSendArrow');
+    const sendStop = document.getElementById('chatSendStop');
+    const coursePicker = document.getElementById('chatCoursePicker');
+    const coursePickerItems = document.getElementById('chatCoursePickerItems');
+    const assistPicker = document.getElementById('chatAssistPicker');
+    const assistTitle = document.getElementById('chatAssistPickerTitle');
+    const assistBody = document.getElementById('chatAssistPickerBody');
+    const teacherCourseCodes = {{ ((teacher_courses | map(attribute='course_code') | list) if teacher_courses else []) | tojson }};
+    const studentCourseCodes = {{ ((student_courses | map(attribute='course_code') | list) if student_courses else []) | tojson }};
+    let messageHistory = [];
+    let isLoading = false;
+    let currentController = null;
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatText(text) {
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    function appendMessage(role, content, meta, skipSave, feedbackId) {
+        const msg = document.createElement('div');
+        msg.className = 'chat-message chat-message--' + role;
+        const controlsHtml = role === 'bot'
+            ? '<div class="chat-feedback" style="margin-top:0.45rem; display:flex; gap:0.35rem;">'
+                + '<button type="button" class="chat-chip chat-feedback-btn" data-vote="up" title="Helpful">👍</button>'
+                + '<button type="button" class="chat-chip chat-feedback-btn" data-vote="down" title="Not helpful">👎</button>'
+                + '<div class="chat-feedback-box" style="display:none; margin-top:0.45rem; width:100%;">'
+                + '  <textarea class="form-input chat-feedback-note" rows="2" placeholder="What was wrong? (optional)"></textarea>'
+                + '  <div style="display:flex; gap:0.4rem; margin-top:0.35rem;">'
+                + '    <button type="button" class="chat-chip chat-feedback-submit">Submit</button>'
+                + '    <button type="button" class="chat-chip chat-feedback-cancel">Cancel</button>'
+                + '  </div>'
+                + '</div>'
+              + '</div>'
+            : '';
+        const metaHtml = (role === 'bot' && meta)
+            ? '<div class="chat-meta">Confidence: ' + escapeHtml(meta.confidence || 'medium') + ' • Sources: ' + escapeHtml((meta.sources || []).join(', ') || 'llm') + '</div>'
+            : '';
+        msg.innerHTML = role === 'user'
+            ? '<span class="chat-avatar chat-avatar--user">You</span><div class="chat-bubble chat-bubble--user"><p>' + formatText(content) + '</p></div>'
+            : '<span class="chat-avatar">AI</span><div class="chat-bubble chat-bubble--bot"><p>' + formatText(content) + '</p>' + metaHtml + controlsHtml + '</div>';
+        messagesEl.appendChild(msg);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        if (role === 'bot') {
+            const bubble = msg.querySelector('.chat-bubble--bot');
+            const feedbackButtons = msg.querySelectorAll('.chat-feedback-btn');
+            const feedbackBox = msg.querySelector('.chat-feedback-box');
+            const feedbackNote = msg.querySelector('.chat-feedback-note');
+            const feedbackSubmit = msg.querySelector('.chat-feedback-submit');
+            const feedbackCancel = msg.querySelector('.chat-feedback-cancel');
+            if (bubble && feedbackButtons.length) {
+                if (feedbackId) bubble.dataset.feedbackId = String(feedbackId);
+                feedbackButtons.forEach(function(btn) {
+                    btn.addEventListener('click', async function() {
+                        const currentId = bubble.dataset.feedbackId;
+                        if (!currentId) return;
+                        const vote = btn.dataset.vote;
+                        if (vote === 'down') {
+                            if (feedbackBox) feedbackBox.style.display = '';
+                            if (feedbackNote) feedbackNote.focus();
+                            return;
+                        }
+                        try {
+                            await fetch('{{ url_for("api_chatbot_feedback") }}', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    feedback_id: Number(currentId),
+                                    feedback: vote,
+                                    note: ''
+                                })
+                            });
+                            feedbackButtons.forEach(function(b) {
+                                b.style.opacity = b === btn ? '1' : '0.55';
+                            });
+                        } catch (e) {}
+                    });
+                });
+                if (feedbackSubmit) {
+                    feedbackSubmit.addEventListener('click', async function() {
+                        const currentId = bubble.dataset.feedbackId;
+                        if (!currentId) return;
+                        const note = (feedbackNote && feedbackNote.value ? feedbackNote.value : '').trim();
+                        try {
+                            await fetch('{{ url_for("api_chatbot_feedback") }}', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    feedback_id: Number(currentId),
+                                    feedback: 'down',
+                                    note: note
+                                })
+                            });
+                            feedbackButtons.forEach(function(b) {
+                                b.style.opacity = b.dataset.vote === 'down' ? '1' : '0.55';
+                            });
+                            if (feedbackBox) feedbackBox.style.display = 'none';
+                        } catch (e) {}
+                    });
+                }
+                if (feedbackCancel) {
+                    feedbackCancel.addEventListener('click', function() {
+                        if (feedbackBox) feedbackBox.style.display = 'none';
+                    });
+                }
+            }
+        }
+        if (!skipSave) {
+            messageHistory.push({ role, content, meta: meta || null, feedbackId: feedbackId || null });
+            if (messageHistory.length > MAX_MESSAGES) messageHistory = messageHistory.slice(-MAX_MESSAGES);
+            try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messageHistory)); } catch (e) {}
+        }
+    }
+
+    function getWelcomeMessage() {
+        const role = messagesEl.dataset.role || 'student';
+        const userName = messagesEl.dataset.userName || '';
+        const greet = userName ? 'Hi ' + userName + '!' : 'Hi!';
+        if (role === 'teacher') {
+            return greet + " I'm your teaching assistant. I can help you schedule classes, check room conflicts, add course events, or answer questions about the platform. How can I help you today?";
+        }
+        return greet + " I'm your classroom assistant. Ask me about exam schedules, floor maps, cheating detection, or anything related to the platform. How can I help you today?";
+    }
+
+    function loadHistory() {
+        try {
+            const raw = sessionStorage.getItem(STORAGE_KEY);
+            messageHistory = raw ? JSON.parse(raw) : [];
+            messagesEl.innerHTML = '';
+            if (messageHistory.length) {
+                messageHistory.forEach(function(item) {
+                    appendMessage(item.role, item.content, item.meta, true, item.feedbackId || null);
+                });
+            } else {
+                appendMessage('bot', getWelcomeMessage(), null, true);
+            }
+        } catch (e) {
+            messageHistory = [];
+            messagesEl.innerHTML = '';
+            appendMessage('bot', getWelcomeMessage(), null, true);
+        }
+    }
+
+    loadHistory();
+
+    function syncTextareaHeight() {
+        input.style.height = '0px';
+        const maxHeight = 400;
+        input.style.height = Math.min(input.scrollHeight + 2, maxHeight) + 'px';
+    }
+
+    function setLoading(loading) {
+        isLoading = loading;
+        sendBtn.setAttribute('aria-busy', loading ? 'true' : 'false');
+        sendBtn.classList.toggle('is-loading', loading);
+        sendArrow.style.display = loading ? 'none' : '';
+        sendStop.style.display = loading ? '' : 'none';
+        syncTextareaHeight();
+    }
+
+    function updateSubmitState() {
+        const hasText = input.value.trim().length > 0;
+        sendBtn.disabled = (!hasText && !isLoading);
+        sendBtn.classList.toggle('is-disabled', !hasText && !isLoading);
+    }
+
+    function sendMessage(text) {
+        input.value = text;
+        syncTextareaHeight();
+        updateSubmitState();
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+
+    function setComposerText(text) {
+        input.value = text || '';
+        syncTextareaHeight();
+        updateSubmitState();
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    }
+
+    function showCoursePicker(prefixText, courseCodes) {
+        const codes = (courseCodes && courseCodes.length) ? courseCodes : teacherCourseCodes;
+        if (!coursePicker || !coursePickerItems || !codes.length) return;
+        if (assistPicker) assistPicker.style.display = 'none';
+        coursePickerItems.innerHTML = '';
+        codes.forEach(function(code) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chat-chip';
+            btn.textContent = code;
+            btn.addEventListener('click', function() {
+                setComposerText(prefixText + code + '?');
+                coursePicker.style.display = 'none';
+            });
+            coursePickerItems.appendChild(btn);
+        });
+        coursePicker.style.display = '';
+    }
+
+    function hideAssistPickers() {
+        if (coursePicker) coursePicker.style.display = 'none';
+        if (assistPicker) assistPicker.style.display = 'none';
+    }
+
+    function openRoomsAssist() {
+        if (!assistPicker || !assistBody || !assistTitle) return;
+        assistTitle.textContent = 'Pick date and time range:';
+        assistBody.innerHTML = ''
+            + '<div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">'
+            + '  <select id="assistDate" class="form-input" style="max-width:130px; padding:0.45rem 0.6rem;">'
+            + '    <option value="today">Today</option>'
+            + '    <option value="tomorrow">Tomorrow</option>'
+            + '  </select>'
+            + '  <select id="assistStart" class="form-input" style="max-width:120px; padding:0.45rem 0.6rem;">'
+            + '    <option>8am</option><option>9am</option><option>10am</option><option>11am</option><option selected>2pm</option><option>3pm</option><option>4pm</option><option>5pm</option>'
+            + '  </select>'
+            + '  <span style="color:var(--color-text-muted);">to</span>'
+            + '  <select id="assistEnd" class="form-input" style="max-width:120px; padding:0.45rem 0.6rem;">'
+            + '    <option>9am</option><option>10am</option><option>11am</option><option>12pm</option><option>3pm</option><option selected>4pm</option><option>5pm</option><option>6pm</option>'
+            + '  </select>'
+            + '  <button type="button" id="assistInsert" class="chat-chip">Insert</button>'
+            + '</div>';
+        assistPicker.style.display = '';
+        const insertBtn = document.getElementById('assistInsert');
+        insertBtn.addEventListener('click', function() {
+            const d = document.getElementById('assistDate').value;
+            const s = document.getElementById('assistStart').value;
+            const e = document.getElementById('assistEnd').value;
+            setComposerText('Which rooms are available ' + d + ' from ' + s + ' to ' + e + '?');
+            assistPicker.style.display = 'none';
+        });
+    }
+
+    function openConflictAssist() {
+        if (!assistPicker || !assistBody || !assistTitle) return;
+        assistTitle.textContent = 'Pick room, date, and time range:';
+        assistBody.innerHTML = ''
+            + '<div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">'
+            + '  <input id="assistRoom" class="form-input" placeholder="Room (e.g., 1001)" style="max-width:170px; padding:0.45rem 0.6rem;" />'
+            + '  <select id="assistDate" class="form-input" style="max-width:130px; padding:0.45rem 0.6rem;">'
+            + '    <option value="today">Today</option>'
+            + '    <option value="tomorrow" selected>Tomorrow</option>'
+            + '  </select>'
+            + '  <select id="assistStart" class="form-input" style="max-width:120px; padding:0.45rem 0.6rem;">'
+            + '    <option>8am</option><option selected>9am</option><option>10am</option><option>11am</option><option>2pm</option><option>3pm</option>'
+            + '  </select>'
+            + '  <span style="color:var(--color-text-muted);">to</span>'
+            + '  <select id="assistEnd" class="form-input" style="max-width:120px; padding:0.45rem 0.6rem;">'
+            + '    <option>9am</option><option>10am</option><option selected>11am</option><option>12pm</option><option>3pm</option><option>4pm</option>'
+            + '  </select>'
+            + '  <button type="button" id="assistInsert" class="chat-chip">Insert</button>'
+            + '</div>';
+        assistPicker.style.display = '';
+        const insertBtn = document.getElementById('assistInsert');
+        insertBtn.addEventListener('click', function() {
+            const room = (document.getElementById('assistRoom').value || '').trim();
+            const d = document.getElementById('assistDate').value;
+            const s = document.getElementById('assistStart').value;
+            const e = document.getElementById('assistEnd').value;
+            setComposerText('Is room ' + (room || '1001') + ' available ' + d + ' from ' + s + ' to ' + e + '?');
+            assistPicker.style.display = 'none';
+        });
+    }
+
+    input.addEventListener('input', function() {
+        syncTextareaHeight();
+        updateSubmitState();
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+    });
+
+    document.querySelectorAll('.chat-quick-actions .chat-chip').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.intent === 'enrollment') {
+                const prefix = 'How many students in ';
+                setComposerText(prefix);
+                showCoursePicker(prefix, teacherCourseCodes);
+                return;
+            }
+            if (btn.dataset.intent === 'who_teaches') {
+                const role = messagesEl.dataset.role || 'student';
+                const codes = role === 'teacher' ? teacherCourseCodes : studentCourseCodes;
+                const prefix = 'Who teaches ';
+                setComposerText(prefix);
+                if (coursePicker) {
+                    if (codes.length) {
+                        showCoursePicker(prefix, codes);
+                    } else {
+                        coursePicker.style.display = 'none';
+                    }
+                }
+                if (assistPicker) assistPicker.style.display = 'none';
+                return;
+            }
+            if (btn.dataset.intent === 'rooms_available') {
+                setComposerText('Which rooms are available?');
+                if (coursePicker) coursePicker.style.display = 'none';
+                openRoomsAssist();
+                return;
+            }
+            if (btn.dataset.intent === 'check_conflict') {
+                setComposerText('Is this room available?');
+                if (coursePicker) coursePicker.style.display = 'none';
+                openConflictAssist();
+                return;
+            }
+            hideAssistPickers();
+            sendMessage(btn.dataset.msg);
+        });
+    });
+
+    syncTextareaHeight();
+    updateSubmitState();
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (isLoading && currentController) {
+            currentController.abort();
+            return;
+        }
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = '';
+        syncTextareaHeight();
+        updateSubmitState();
+        appendMessage('user', text);
+
+        const typing = document.createElement('div');
+        typing.className = 'chat-message chat-message--bot chat-typing';
+        typing.innerHTML = '<span class="chat-avatar">AI</span><div class="chat-bubble chat-bubble--bot"><span class="typing-dots"><span></span><span></span><span></span></span></div>';
+        messagesEl.appendChild(typing);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        setLoading(true);
+        currentController = new AbortController();
+        try {
+            const res = await fetch('{{ url_for("api_chatbot") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text }),
+                signal: currentController.signal
+            });
+            const data = await res.json().catch(() => ({}));
+            typing.remove();
+            const reply = data.reply || data.error || 'Sorry, I could not process your request. Please try again.';
+            appendMessage('bot', reply, data.meta || null, false, null);
+            try {
+                const fbRes = await fetch('{{ url_for("api_chatbot_feedback") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_message: text,
+                        bot_reply: reply,
+                        meta: data.meta || null
+                    })
+                });
+                const fbData = await fbRes.json().catch(() => ({}));
+                if (fbData && fbData.feedback_id) {
+                    const lastBubble = messagesEl.querySelector('.chat-message--bot:last-child .chat-bubble--bot');
+                    if (lastBubble) {
+                        lastBubble.dataset.feedbackId = String(fbData.feedback_id);
+                    }
+                    const lastHistory = messageHistory[messageHistory.length - 1];
+                    if (lastHistory && lastHistory.role === 'bot') {
+                        lastHistory.feedbackId = fbData.feedback_id;
+                        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messageHistory)); } catch (e) {}
+                    }
+                }
+            } catch (e) {}
+        } catch (err) {
+            typing.remove();
+            if (err && err.name === 'AbortError') {
+                appendMessage('bot', 'Stopped.');
+            } else {
+                appendMessage('bot', 'Something went wrong. Please check your connection and try again.');
+            }
+        } finally {
+            currentController = null;
+            setLoading(false);
+            updateSubmitState();
+        }
+    });
+})();
+</script>
+{% endblock %}

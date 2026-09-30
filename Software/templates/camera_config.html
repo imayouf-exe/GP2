@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Camera Configuration | Classroom Management{% endblock %}
+
+{% block content %}
+<p style="margin-bottom: 1rem;">
+    <a href="{{ url_for('exam_selection') }}" style="color: var(--color-text-muted); text-decoration: none;">Exam Selection</a> › Camera Configuration
+</p>
+<h1 style="margin-bottom: 0.5rem;">Camera Configuration</h1>
+<p class="lead" style="margin-bottom: 2rem;">Configure AI detection features and preview camera feed</p>
+
+<div class="camera-config-layout" style="display: grid; grid-template-columns: 1fr 400px; gap: 2rem; align-items: start;">
+    <div>
+        <section class="card" style="margin-bottom: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">AI Detection Features</h3>
+            {% for feature in features %}
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    <strong>{{ feature.name }}</strong>
+                    <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.25rem;">{{ feature.description }}</p>
+                </div>
+                <div class="toggle-switch {% if feature.enabled %}active{% endif %}" data-feature="{{ feature.name }}"></div>
+            </div>
+            {% endfor %}
+        </section>
+    </div>
+    <section class="card">
+        <h3 style="margin-bottom: 1rem;">Live Camera Preview</h3>
+        <div class="video-placeholder">
+            Camera feed will appear here
+        </div>
+        <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.75rem;">Click to allow camera access when prompted</p>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.toggle-switch').forEach(function(toggle) {
+    toggle.addEventListener('click', function() {
+        this.classList.toggle('active');
+    });
+});
+</script>
+{% endblock %}

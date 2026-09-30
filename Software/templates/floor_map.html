@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Floor Map | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">Floor Map</h1>
+<p class="lead" style="margin-bottom: 1rem;">Building layout and classroom availability. Click a room to see upcoming events.</p>
+
+<div id="floorMapRoot" data-is-teacher="{% if is_teacher %}true{% else %}false{% endif %}" data-can-reserve="{% if is_teacher %}true{% else %}false{% endif %}" data-calendar-url="{{ url_for('calendar') }}" style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start;">
+    <div class="classroom-list" style="min-width: 200px; background: var(--color-surface); border-radius: var(--radius); padding: 1rem; border: 1px solid var(--color-border);">
+        {% for c in classrooms %}
+        <div class="room-item room-clickable" 
+             data-room="{{ c.room_number }}"
+             id="room-{{ c.room_number }}"
+             style="padding: 0.4rem 0; border-radius: var(--radius-sm); transition: background 0.2s;">
+            Classroom {{ c.room_number }}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="floor-map-container" style="flex: 1; min-width: 0; max-width: 900px; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);">
+        <img src="{{ url_for('static', filename='images/floor-map.png') }}" alt="Floor plan" style="width: 100%; height: auto; display: block;">
+    </div>
+</div>
+
+<div id="roomModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 2rem;">
+    <div style="background: var(--color-surface); border-radius: var(--radius); padding: 1.5rem; max-width: 480px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow);">
+        <h3 style="margin-bottom: 1rem;">Classroom <span id="modalRoomNum"></span></h3>
+        <div id="modalSchedule" style="flex: 1; overflow-y: auto; margin-bottom: 1rem; max-height: 320px;"></div>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            {% if is_teacher %}
+            <a id="modalReserveLink" href="#" class="btn btn-primary">Reserve this room</a>
+            {% endif %}
+            <button type="button" onclick="closeRoomModal()" style="background: var(--color-surface-elevated); color: var(--color-text); border: 1px solid var(--color-border); padding: 0.5rem 1rem; border-radius: var(--radius-sm); cursor: pointer;">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.room-clickable { cursor: pointer; }
+#roomModal .modal-email-link { color: #7dd3fc; }
+#roomModal .modal-email-link:hover { color: #bae6fd; }
+</style>
+
+<script>
+(function() {
+    document.querySelectorAll('.room-clickable').forEach(el => {
+        el.addEventListener('click', function() {
+            openRoomModal(this.dataset.room);
+        });
+    });
+
+    window.openRoomModal = function(roomNum) {
+        fetch('/api/floor-map/room/' + roomNum + '/schedule')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('modalRoomNum').textContent = roomNum;
+                const scheduleEl = document.getElementById('modalSchedule');
+                const root = document.getElementById('floorMapRoot');
+                if (data.events && data.events.length) {
+                    scheduleEl.innerHTML = '<p style="margin-bottom: 0.75rem; color: var(--color-text-muted);">Upcoming events:</p>' +
+                        data.events.slice(0, 10).map(ev => {
+                            const start = (ev.start || '').replace('T', ' ').slice(0, 16);
+                            const end = (ev.end || '').replace('T', ' ').slice(11, 16);
+                            var parts = ['<div class="event-booking-box" style="padding: 1rem; background: var(--color-surface-elevated); border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 0.75rem;">',
+                                '<div style="margin-bottom: 0.5rem;"><strong>' + (ev.title || 'Event') + '</strong> <span style="color: var(--color-text-muted); font-size: 0.85em;">(' + (ev.event_type || '') + ')</span></div>',
+                                '<div style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 0.5rem;">' + start + ' – ' + end + '</div>'];
+                            if (ev.booked_by || ev.booked_email || ev.booked_office || ev.course_code || ev.description) {
+                                parts.push('<div style="font-size: 0.9rem; padding-top: 0.5rem; border-top: 1px solid var(--color-border);">');
+                                if (ev.booked_by) parts.push('<div>Booked by: ' + ev.booked_by + '</div>');
+                                if (ev.booked_email) parts.push('<div>Email: <a href="mailto:' + ev.booked_email + '" class="modal-email-link">' + ev.booked_email + '</a></div>');
+                                if (ev.booked_office) parts.push('<div>Office: ' + ev.booked_office + '</div>');
+                                if (ev.course_code) parts.push('<div>Course: ' + ev.course_code + (ev.course_name ? ' – ' + ev.course_name : '') + '</div>');
+                                if (ev.description) parts.push('<div>Description: ' + ev.description + '</div>');
+                                parts.push('</div>');
+                            }
+                            parts.push('</div>');
+                            return parts.join('');
+                        }).join('');
+                } else {
+                    scheduleEl.innerHTML = '<p style="color: var(--color-success);">No scheduled events in the next 7 days. Room is available.</p>';
+                }
+                var reserveLink = document.getElementById('modalReserveLink');
+                if (reserveLink && root.getAttribute('data-can-reserve') === 'true') {
+                    reserveLink.href = root.getAttribute('data-calendar-url') + '?location=' + encodeURIComponent('Classroom ' + roomNum);
+                }
+                document.getElementById('roomModal').style.display = 'flex';
+            })
+            .catch(console.error);
+    };
+
+    window.closeRoomModal = function() {
+        document.getElementById('roomModal').style.display = 'none';
+    };
+})();
+</script>
+{% endblock %}

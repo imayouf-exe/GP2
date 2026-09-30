@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Exam Monitor{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% block header %}
+    <header class="site-header">
+        <nav class="nav-container">
+            <a href="{{ url_for('dashboard') }}" class="logo">Exam Monitor</a>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+                {% if request.endpoint in ['cheating_detection', 'exam_selection', 'camera_config', 'monitoring', 'report'] %}
+                <li><a href="{{ url_for('cheating_detection') }}" class="active">Cheating Detection</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    {% endblock %}
+
+    {% block body %}
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    {% if request.endpoint == 'dashboard' %}
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p>&copy; 2025 Exam Monitor System. All rights reserved.</p>
+        </div>
+    </footer>
+    {% endif %}
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}Classroom Management{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-has-bg{% if user_ui_prefs.ui_reduced_motion %} ui-reduced-motion{% endif %}{% if user_ui_prefs.ui_theme == 'light' %} theme-light{% endif %}{% block body_class %}{% endblock %}">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    {% block header %}
+    <header class="site-header">
+        <nav class="nav-container" aria-label="Primary navigation">
+            <a href="{{ url_for('dashboard') }}" class="logo">Classroom Management</a>
+            <ul class="nav-links" role="list">
+                <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint in ['dashboard', 'teacher_dashboard', 'student_dashboard', 'admin_dashboard'] %}class="active" aria-current="page"{% endif %}>Dashboard</a></li>
+                {% if session.get('role') == 'teacher' %}
+                <li><a href="{{ url_for('cheating_detection') }}" {% if request.endpoint in ['cheating_detection', 'exam_selection', 'camera_config', 'monitoring', 'report'] %}class="active" aria-current="page"{% endif %}>Cheating Detection</a></li>
+                <li><a href="{{ url_for('calendar') }}" {% if request.endpoint == 'calendar' %}class="active" aria-current="page"{% endif %}>Calendar</a></li>
+                <li><a href="{{ url_for('floor_map') }}" {% if request.endpoint == 'floor_map' %}class="active" aria-current="page"{% endif %}>Floor Map</a></li>
+                <li><a href="{{ url_for('chatbot') }}" {% if request.endpoint == 'chatbot' %}class="active" aria-current="page"{% endif %}>Chatbot</a></li>
+                {% endif %}
+                {% if session.get('role') == 'student' %}
+                <li><a href="{{ url_for('student_calendar') }}" {% if request.endpoint == 'student_calendar' %}class="active" aria-current="page"{% endif %}>Calendar</a></li>
+                <li><a href="{{ url_for('floor_map') }}" {% if request.endpoint == 'floor_map' %}class="active" aria-current="page"{% endif %}>Floor Map</a></li>
+                <li><a href="{{ url_for('chatbot') }}" {% if request.endpoint == 'chatbot' %}class="active" aria-current="page"{% endif %}>Chatbot</a></li>
+                {% endif %}
+                {% if session.get('role') == 'admin' %}
+                <li><a href="{{ url_for('admin_users') }}" {% if request.endpoint == 'admin_users' %}class="active" aria-current="page"{% endif %}>Users</a></li>
+                <li><a href="{{ url_for('admin_courses') }}" {% if request.endpoint == 'admin_courses' %}class="active" aria-current="page"{% endif %}>Courses</a></li>
+                <li><a href="{{ url_for('admin_calendar') }}" {% if request.endpoint == 'admin_calendar' %}class="active" aria-current="page"{% endif %}>Calendar</a></li>
+                <li><a href="{{ url_for('admin_chatbot_kb') }}" {% if request.endpoint == 'admin_chatbot_kb' %}class="active" aria-current="page"{% endif %}>Chatbot KB</a></li>
+                <li><a href="{{ url_for('admin_chatbot_feedback') }}" {% if request.endpoint == 'admin_chatbot_feedback' %}class="active" aria-current="page"{% endif %}>Feedback</a></li>
+                {% endif %}
+                {% if session.get('logged_in') %}
+                <li><a href="{{ url_for('settings') }}" {% if request.endpoint == 'settings' %}class="active" aria-current="page"{% endif %}>Settings</a></li>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+    {% endblock %}
+
+    {% block body %}
+    <main id="main-content" class="main-content" tabindex="-1">
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    {% if request.endpoint in ['dashboard', 'teacher_dashboard', 'student_dashboard', 'admin_dashboard'] %}
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p>&copy; 2026 Classroom Management. All rights reserved.</p>
+        </div>
+    </footer>
+    {% endif %}
+
+    <script>
+    (function() {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+        if (csrfToken) {
+            var postFormsForToken = document.querySelectorAll('form[method="POST"], form[method="post"]');
+            postFormsForToken.forEach(function(form) {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'csrf_token';
+                    hidden.value = csrfToken;
+                    form.appendChild(hidden);
+                }
+            });
+        }
+
+        if (csrfToken && window.fetch) {
+            var originalFetch = window.fetch.bind(window);
+            window.fetch = function(input, init) {
+                var cfg = init || {};
+                var method = String((cfg.method || 'GET')).toUpperCase();
+                var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                var sameOrigin = !url || url.startsWith('/') || url.startsWith(window.location.origin);
+                if (sameOrigin && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+                    cfg.headers = new Headers(cfg.headers || {});
+                    if (!cfg.headers.get('X-CSRF-Token')) {
+                        cfg.headers.set('X-CSRF-Token', csrfToken);
+                    }
+                }
+                return originalFetch(input, cfg);
+            };
+        }
+
+        var postForms = document.querySelectorAll('form[method="POST"], form[method="post"]');
+        postForms.forEach(function(form) {
+            form.addEventListener('submit', function() {
+                var submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+                submitButtons.forEach(function(btn) {
+                    if (btn.dataset.submitting === "1") return;
+                    btn.dataset.submitting = "1";
+                    if (!btn.dataset.originalText) {
+                        btn.dataset.originalText = btn.tagName === "INPUT" ? btn.value : btn.textContent;
+                    }
+                    if (btn.tagName === "INPUT") {
+                        btn.value = "Saving...";
+                    } else {
+                        btn.textContent = "Saving...";
+                    }
+                    btn.disabled = true;
+                });
+            });
+        });
+
+        var cards = document.querySelectorAll('.dashboard-card');
+        if (!cards.length) return;
+
+        cards.forEach(function(card) {
+            card.addEventListener('pointermove', function(event) {
+                var rect = card.getBoundingClientRect();
+                var x = event.clientX - rect.left;
+                var y = event.clientY - rect.top;
+                card.style.setProperty('--spot-x', x + 'px');
+                card.style.setProperty('--spot-y', y + 'px');
+            });
+        });
+    })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

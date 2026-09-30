@@ -1,0 +1,810 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar | Classroom Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div>
+        <h1 style="margin-bottom: 0.5rem;">Calendar</h1>
+        <p class="lead">Manage schedules, deadlines, and reminders</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn btn-secondary" onclick="calendar.prev()" style="padding: 0.5rem 1rem;">← Prev</button>
+        <button class="btn btn-secondary" onclick="calendar.today()" style="padding: 0.5rem 1rem;">Today</button>
+        <button class="btn btn-secondary" onclick="calendar.next()" style="padding: 0.5rem 1rem;">Next →</button>
+        <select id="viewSelector" onchange="changeView(this.value)" style="padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); margin-left: 1rem;">
+            <option value="month">Month</option>
+            <option value="week">Week</option>
+            <option value="day">Day</option>
+        </select>
+    </div>
+</div>
+
+<!-- Calendar Type Tabs -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+    <button id="tabCourse" class="btn calendar-tab active" onclick="switchCalendar('course')" style="padding: 0.6rem 1.2rem;">
+        Course Calendar
+    </button>
+    <button id="tabGlobal" class="btn btn-secondary calendar-tab" onclick="switchCalendar('global')" style="padding: 0.6rem 1.2rem;">
+        Global Calendar
+    </button>
+    <button id="tabPersonal" class="btn btn-secondary calendar-tab" onclick="switchCalendar('personal')" style="padding: 0.6rem 1.2rem;">
+        Personal Calendar
+    </button>
+</div>
+
+<!-- Legend -->
+<div id="legendCourse" style="display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.85rem; flex-wrap: wrap;">
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #4f46e5; border-radius: 3px; margin-right: 0.4rem;"></span>Exam</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #f59e0b; border-radius: 3px; margin-right: 0.4rem;"></span>Assignment</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 3px; margin-right: 0.4rem;"></span>Deadline</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 3px; margin-right: 0.4rem;"></span>Class</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #8b5cf6; border-radius: 3px; margin-right: 0.4rem;"></span>Reminder</span>
+    <span><span style="display: inline-block; width: 12px; height: 12px; background: #6b7280; border-radius: 3px; margin-right: 0.4rem;"></span>Other</span>
+</div>
+
+<div id="calendarHeader" style="text-align: center; margin-bottom: 1rem;">
+    <h2 id="currentRange" style="font-size: 1.5rem; font-weight: 600;"></h2>
+</div>
+
+<div id="calendar" style="height: 650px; background: var(--color-surface); border-radius: var(--radius); border: 1px solid var(--color-border);"></div>
+
+<!-- Custom Event Detail Popup (replaces Toast UI to avoid flicker) -->
+<div id="eventDetailPopup" style="display: none; position: fixed; z-index: 2000; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.25rem; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+    <h3 id="eventDetailTitle" style="margin: 0 0 0.5rem 0; font-size: 1.1rem;"></h3>
+    <p id="eventDetailDate" style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--color-text-muted);"></p>
+    <div id="eventDetailMeta" style="margin-bottom: 1rem; font-size: 0.9rem;"></div>
+    <div style="display: flex; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border);">
+        <button type="button" id="eventDetailEdit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">Edit</button>
+        <button type="button" id="eventDetailDelete" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem; background: var(--color-danger, #dc2626); color: white;">Delete</button>
+    </div>
+</div>
+<div id="eventDetailOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1999;"></div>
+
+<!-- Event Modal -->
+<div id="eventModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--color-surface); padding: 2rem; border-radius: var(--radius); width: 100%; max-width: 500px; border: 1px solid var(--color-border); max-height: 90vh; overflow-y: auto;">
+        <h3 id="modalTitle" style="margin-bottom: 1.5rem;">Add Event</h3>
+        <form id="eventForm">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Event Type</label>
+                <select id="eventType" onchange="updateFormFields()" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="exam">Exam</option>
+                    <option value="assignment">Assignment</option>
+                    <option value="deadline">Deadline</option>
+                    <option value="class">Class</option>
+                    <option value="reminder">Reminder</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Title</label>
+                <input type="text" id="eventTitle" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div id="courseField" style="margin-bottom: 1rem;">
+                <label id="courseLabel" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course</label>
+                <select id="eventCourse" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">-- Select Course --</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}">{{ course.course_name }} - Section {{ course.section_number|default(1) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Date</label>
+                <input type="date" id="eventDate" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Start Time</label>
+                    <input type="text" id="eventStartTime" required placeholder="09:00" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" title="24-hour format, e.g. 21:00 for 9 PM" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">End Time</label>
+                    <input type="text" id="eventEndTime" required placeholder="11:00" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" title="24-hour format, e.g. 23:00 for 11 PM" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                </div>
+            </div>
+            <div id="locationField" style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Location *</label>
+                <select id="eventLocation" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">Select classroom</option>
+                    {% for c in classrooms %}
+                    <option value="{{ c.id }}" data-name="{{ c.name }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description (optional)</label>
+                <textarea id="eventDescription" rows="2" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn">Add Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar-hover.css') }}">
+<style>
+    .toastui-calendar-popup-overlay {
+        background: rgba(0, 0, 0, 0.6) !important;
+    }
+    .toastui-calendar-popup-container {
+        background: #1a1a2e !important;
+        border: 1px solid #2d2d44 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    }
+    .toastui-calendar-popup-container * {
+        color: #e0e0e8 !important;
+    }
+    .toastui-calendar-detail-container {
+        background: #1a1a2e !important;
+    }
+    .toastui-calendar-popup-section,
+    .toastui-calendar-popup-detail,
+    .toastui-calendar-popup-detail-item-separate {
+        border-color: #2d2d44 !important;
+    }
+    .toastui-calendar-popup-button {
+        background: #252538 !important;
+        border: 1px solid #2d2d44 !important;
+        color: #e0e0e8 !important;
+        border-radius: 6px !important;
+    }
+    .toastui-calendar-popup-button:hover {
+        background: #2d2d44 !important;
+    }
+    .toastui-calendar-popup-edit,
+    .toastui-calendar-popup-delete {
+        background: #252538 !important;
+        border: 1px solid #2d2d44 !important;
+        border-radius: 6px !important;
+        padding: 6px 12px !important;
+    }
+    .toastui-calendar-popup-edit:hover {
+        background: #4f46e5 !important;
+    }
+    .toastui-calendar-popup-delete:hover {
+        background: #dc2626 !important;
+    }
+    .toastui-calendar-icon {
+        filter: invert(0.8) !important;
+    }
+    .toastui-calendar-popup-container .calendar-section,
+    .toastui-calendar-popup-container .dropdown-section.calendar-section { display: none !important; }
+    .toastui-calendar-popup-detail-item[data-schedule-key="calendar"] { display: none !important; }
+    .toastui-calendar-see-more-container {
+        background: #1a1a2e !important;
+        border: 1px solid #2d2d44 !important;
+        border-radius: 8px !important;
+    }
+    .toastui-calendar-month-see-more-header {
+        background: #252538 !important;
+        border-bottom: 1px solid #2d2d44 !important;
+    }
+    .toastui-calendar-template-monthDayName {
+        color: #a0a0b0 !important;
+    }
+    .calendar-tab {
+        transition: all 0.2s ease;
+    }
+    .calendar-tab.active {
+        background: #4f46e5 !important;
+        border-color: #4f46e5 !important;
+    }
+</style>
+<script src="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.js"></script>
+<script>
+    var Calendar = tui.Calendar;
+    var calendar = new Calendar('#calendar', {
+        defaultView: 'month',
+        usageStatistics: false,
+        useDetailPopup: false,
+        useFormPopup: false,
+        isReadOnly: false,
+        gridSelection: true,
+        timezone: {
+            zones: [{ timezoneName: Intl.DateTimeFormat().resolvedOptions().timeZone }]
+        },
+        template: {
+            time: function(event) {
+                var start = new Date(event.start);
+                var hours = String(start.getHours()).padStart(2, '0');
+                var mins = String(start.getMinutes()).padStart(2, '0');
+                return hours + ':' + mins + ' ' + event.title;
+            },
+            allday: function(event) {
+                return event.title;
+            },
+            timegridDisplayPrimaryTime: function(props) {
+                var hour = null;
+                try {
+                    if (props && props.time && typeof props.time.getHours === 'function') {
+                        hour = props.time.getHours();
+                    } else if (typeof props.getHours === 'function') {
+                        hour = props.getHours();
+                    }
+                } catch(e) {}
+                if (hour !== null) {
+                    return String(hour).padStart(2, '0') + ':00';
+                }
+                return '';
+            },
+            popupDetailDate: function(isAllDay, start, end) {
+                var startDate = new Date(start);
+                var endDate = new Date(end);
+                var startStr = String(startDate.getHours()).padStart(2, '0') + ':' + String(startDate.getMinutes()).padStart(2, '0');
+                var endStr = String(endDate.getHours()).padStart(2, '0') + ':' + String(endDate.getMinutes()).padStart(2, '0');
+                var dateStr = startDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                if (isAllDay) {
+                    return dateStr + ' (All day)';
+                }
+                return dateStr + ' ' + startStr + ' - ' + endStr;
+            }
+        },
+        week: {
+            startDayOfWeek: 0,
+            dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            taskView: false,
+            eventView: ['allday', 'time'],
+            hourStart: 0,
+            hourEnd: 24
+        },
+        month: {
+            startDayOfWeek: 0,
+            dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        },
+        calendars: [
+            {
+                id: 'events',
+                name: 'Events',
+                backgroundColor: '#4f46e5',
+                borderColor: '#4f46e5'
+            }
+        ],
+        theme: {
+            common: {
+                backgroundColor: '#1a1a2e',
+                border: '1px solid #2d2d44',
+                gridSelection: {
+                    backgroundColor: 'rgba(79, 70, 229, 0.3)',
+                    border: '1px solid #4f46e5'
+                },
+                dayName: { color: '#a0a0b0' },
+                holiday: { color: '#ff6b6b' },
+                saturday: { color: '#a0a0b0' },
+                today: { color: '#4f46e5' }
+            },
+            month: {
+                dayName: {
+                    backgroundColor: '#1a1a2e',
+                    borderLeft: '1px solid #2d2d44',
+                    borderTop: '1px solid #2d2d44'
+                },
+                dayExceptThisMonth: { color: '#4a4a5a' },
+                holidayExceptThisMonth: { color: '#6a4a4a' },
+                moreView: {
+                    backgroundColor: '#252538',
+                    border: '1px solid #2d2d44'
+                },
+                moreViewTitle: { backgroundColor: '#1a1a2e' },
+                weekend: { backgroundColor: '#1f1f32' }
+            },
+            week: {
+                dayName: {
+                    backgroundColor: '#1a1a2e',
+                    borderTop: '1px solid #2d2d44',
+                    borderBottom: '1px solid #2d2d44',
+                    borderLeft: '1px solid #2d2d44'
+                },
+                dayGrid: { borderRight: '1px solid #2d2d44' },
+                dayGridLeft: {
+                    backgroundColor: '#1a1a2e',
+                    borderRight: '1px solid #2d2d44'
+                },
+                timeGrid: { borderRight: '1px solid #2d2d44' },
+                timeGridLeft: {
+                    backgroundColor: '#1a1a2e',
+                    borderRight: '1px solid #2d2d44'
+                },
+                timeGridLeftAdditionalTimezone: { backgroundColor: '#1a1a2e' },
+                timeGridHalfHourLine: { borderBottom: '1px dotted #2d2d44' },
+                timeGridHourLine: { borderBottom: '1px solid #2d2d44' },
+                nowIndicatorLabel: { color: '#4f46e5' },
+                nowIndicatorPast: { border: '1px dashed #4f46e5' },
+                nowIndicatorBullet: { backgroundColor: '#4f46e5' },
+                nowIndicatorToday: { border: '1px solid #4f46e5' },
+                pastTime: { color: '#6a6a7a' },
+                futureTime: { color: '#a0a0b0' },
+                weekend: { backgroundColor: '#1f1f32' },
+                today: { backgroundColor: 'rgba(79, 70, 229, 0.1)' }
+            }
+        }
+    });
+
+    function updateHeader() {
+        var range = calendar.getDate();
+        var view = calendar.getViewName();
+        var text = '';
+        
+        if (view === 'month') {
+            text = range.toDate().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        } else if (view === 'week') {
+            var start = calendar.getDateRangeStart().toDate();
+            var end = calendar.getDateRangeEnd().toDate();
+            text = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+                   ' - ' + end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else {
+            text = range.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        }
+        
+        document.getElementById('currentRange').textContent = text;
+    }
+
+    function changeView(view) {
+        calendar.changeView(view);
+        updateHeader();
+        setTimeout(scrollToTop, 150);
+    }
+
+    var currentClickedEvent = null;
+    var lastDetailPopupAt = 0;
+    var lastDetailPopupKey = '';
+
+    calendar.on('clickEvent', function(e) {
+        currentClickedEvent = e.event;
+        showEventDetailPopup(e.event, e.nativeEvent);
+    });
+
+    /* Month view: Toast UI treats ~3px movement as drag, so clickEvent often never fires.
+       Supplement with a looser "tap" on pointerup + dedupe with library clickEvent. */
+    (function attachMonthEventTapFix() {
+        var el = document.getElementById('calendar');
+        if (!el) return;
+        var press = null;
+        var MAX_MOVE_PX = 14;
+        el.addEventListener('pointerdown', function(ev) {
+            if (ev.button !== 0 || calendar.getViewName() !== 'month') {
+                press = null;
+                return;
+            }
+            var block = ev.target.closest && ev.target.closest('.toastui-calendar-weekday-event-block');
+            if (!block) {
+                press = null;
+                return;
+            }
+            press = {
+                x: ev.clientX,
+                y: ev.clientY,
+                id: block.getAttribute('data-event-id'),
+                calId: block.getAttribute('data-calendar-id') || 'events'
+            };
+        }, true);
+        el.addEventListener('pointerup', function(ev) {
+            if (ev.button !== 0 || !press || calendar.getViewName() !== 'month') {
+                press = null;
+                return;
+            }
+            var dx = ev.clientX - press.x;
+            var dy = ev.clientY - press.y;
+            if (Math.sqrt(dx * dx + dy * dy) > MAX_MOVE_PX) {
+                press = null;
+                return;
+            }
+            var evObj = calendar.getEvent(press.id, press.calId);
+            if (!evObj && press.id != null && String(press.id).trim() !== '' && !isNaN(Number(press.id))) {
+                evObj = calendar.getEvent(Number(press.id), press.calId);
+            }
+            press = null;
+            if (!evObj) return;
+            currentClickedEvent = evObj;
+            showEventDetailPopup(evObj, ev);
+        }, true);
+    })();
+    
+    function showEventDetailPopup(ev, nativeEv) {
+        var dedupeKey = String(ev.id) + '|' + String(ev.calendarId || 'events');
+        var now = Date.now();
+        if (dedupeKey === lastDetailPopupKey && now - lastDetailPopupAt < 320) return;
+        lastDetailPopupKey = dedupeKey;
+        lastDetailPopupAt = now;
+
+        var teacher = ev.teacher_name || (ev.raw && ev.raw.teacher_name);
+        var evType = ev.event_type || (ev.raw && ev.raw.event_type);
+        var location = ev.location || (ev.raw && ev.raw.location);
+        var colors = {exam:'#4f46e5',assignment:'#f59e0b',deadline:'#ef4444',class:'#10b981',reminder:'#8b5cf6',other:'#6b7280'};
+        var metaHtml = '';
+        if (teacher) metaHtml += '<div style="margin-bottom:0.4rem"><span style="filter:brightness(0) invert(1);font-size:1em">👤</span> <span style="color:#fff">' + teacher + '</span></div>';
+        if (location) metaHtml += '<div style="margin-bottom:0.4rem">📍 <span style="color:#fff">' + (location || '').replace(/</g, '&lt;') + '</span></div>';
+        if (evType) {
+            var c = colors[evType] || '#6b7280';
+            var label = evType.charAt(0).toUpperCase() + evType.slice(1);
+            metaHtml += '<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';vertical-align:middle;margin-right:8px"></span>' + label + '</div>';
+        }
+        document.getElementById('eventDetailTitle').textContent = ev.title || '';
+        var start = new Date(ev.start), end = new Date(ev.end);
+        var dateStr = start.toLocaleDateString('en-GB', {year:'numeric',month:'2-digit',day:'2-digit'}) + ' ' + String(start.getHours()).padStart(2,'0') + ':' + String(start.getMinutes()).padStart(2,'0') + ' – ' + String(end.getHours()).padStart(2,'0') + ':' + String(end.getMinutes()).padStart(2,'0');
+        document.getElementById('eventDetailDate').textContent = dateStr;
+        document.getElementById('eventDetailMeta').innerHTML = metaHtml || '<div style="color:var(--color-text-muted)">—</div>';
+        var popup = document.getElementById('eventDetailPopup');
+        var overlay = document.getElementById('eventDetailOverlay');
+        popup.style.display = 'block';
+        overlay.style.display = 'block';
+        var rect = popup.getBoundingClientRect();
+        var x = nativeEv && nativeEv.clientX ? Math.min(nativeEv.clientX, window.innerWidth - rect.width - 20) : (window.innerWidth - rect.width) / 2;
+        var y = nativeEv && nativeEv.clientY ? Math.min(nativeEv.clientY + 10, window.innerHeight - rect.height - 20) : (window.innerHeight - rect.height) / 2;
+        popup.style.left = Math.max(20, x) + 'px';
+        popup.style.top = Math.max(20, y) + 'px';
+        document.getElementById('eventDetailEdit').style.display = 'none';
+        document.getElementById('eventDetailDelete').onclick = function() {
+            hideEventDetailPopup();
+            deleteEventHandler(ev.id);
+        };
+        overlay.onclick = hideEventDetailPopup;
+    }
+    
+    function hideEventDetailPopup() {
+        document.getElementById('eventDetailPopup').style.display = 'none';
+        document.getElementById('eventDetailOverlay').style.display = 'none';
+    }
+    
+    function deleteEventHandler(eventId) {
+        console.log('Deleting event:', eventId);
+        
+        if (confirm('Are you sure you want to delete this event?')) {
+            fetch('/api/calendar/events/' + eventId, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Delete response:', data);
+                calendar.deleteEvent(eventId, 'events');
+                currentClickedEvent = null;
+                alert('Event deleted successfully!');
+            })
+            .catch(err => {
+                console.error('Error deleting event:', err);
+                alert('Error deleting event');
+            });
+        }
+    }
+
+    calendar.on('selectDateTime', function(e) {
+        var startDate = new Date(e.start);
+        var endDate = new Date(e.end);
+        
+        // If selected from month view, times are midnight - set reasonable defaults
+        if (startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
+            endDate.getHours() === 0 && endDate.getMinutes() === 0) {
+            startDate.setHours(9, 0, 0);  // Default start: 09:00
+            endDate = new Date(startDate);
+            endDate.setHours(11, 0, 0);   // Default end: 11:00 (2 hour exam)
+        }
+        
+        document.getElementById('eventDate').value = formatDate(startDate);
+        document.getElementById('eventStartTime').value = formatTime(startDate);
+        document.getElementById('eventEndTime').value = formatTime(endDate);
+        openModal();
+        calendar.clearGridSelections();
+    });
+
+    function formatDate(date) {
+        var d = new Date(date);
+        var year = d.getFullYear();
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+    
+    function formatTime(date) {
+        var d = new Date(date);
+        var hours = String(d.getHours()).padStart(2, '0');
+        var minutes = String(d.getMinutes()).padStart(2, '0');
+        return hours + ':' + minutes;
+    }
+    
+    function combineDateTime(dateStr, timeStr) {
+        return dateStr + 'T' + timeStr;
+    }
+
+    function openModal() {
+        document.getElementById('eventModal').style.display = 'flex';
+        // Set default event type based on calendar
+        if (currentCalendarType === 'course') {
+            document.getElementById('eventType').value = 'exam';
+        } else if (currentCalendarType === 'personal') {
+            document.getElementById('eventType').value = 'reminder';
+        } else {
+            document.getElementById('eventType').value = 'other';
+        }
+        updateFormFields();
+        // Prefill location from URL (e.g. from Floor Map "Reserve this room")
+        var params = new URLSearchParams(window.location.search);
+        var loc = params.get('location');
+        if (loc) {
+            var sel = document.getElementById('eventLocation');
+            var opts = sel.querySelectorAll('option[data-name="' + loc + '"]');
+            if (opts.length) sel.value = opts[0].value;
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('eventModal').style.display = 'none';
+        document.getElementById('eventForm').reset();
+    }
+
+    // Current calendar type (default: course)
+    var currentCalendarType = 'course';
+    
+    // Event type colors
+    var eventColors = {
+        exam: { bg: '#4f46e5', border: '#4f46e5' },
+        assignment: { bg: '#f59e0b', border: '#f59e0b' },
+        deadline: { bg: '#ef4444', border: '#ef4444' },
+        class: { bg: '#10b981', border: '#10b981' },
+        reminder: { bg: '#8b5cf6', border: '#8b5cf6' },
+        other: { bg: '#6b7280', border: '#6b7280' }
+    };
+    
+    function switchCalendar(type) {
+        currentCalendarType = type;
+        
+        // Update tab styles
+        document.querySelectorAll('.calendar-tab').forEach(function(tab) {
+            tab.classList.remove('active');
+            tab.classList.add('btn-secondary');
+        });
+        document.getElementById('tab' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+        document.getElementById('tab' + type.charAt(0).toUpperCase() + type.slice(1)).classList.remove('btn-secondary');
+        
+        // Show legend for all calendar types
+        document.getElementById('legendCourse').style.display = 'flex';
+        
+        // Reload events
+        calendar.clear();
+        loadEvents();
+    }
+    
+    function updateFormFields() {
+        var eventType = document.getElementById('eventType').value;
+        var courseField = document.getElementById('courseField');
+        var locationField = document.getElementById('locationField');
+        
+        // Show course field for course calendar (required), hide for personal
+        if (currentCalendarType === 'personal') {
+            courseField.style.display = 'none';
+            document.getElementById('eventCourse').required = false;
+        } else {
+            courseField.style.display = 'block';
+            var courseRequired = currentCalendarType === 'course';
+            document.getElementById('eventCourse').required = courseRequired;
+            document.getElementById('courseLabel').textContent = courseRequired ? 'Course *' : 'Course';
+        }
+        
+        // Show location only for exam and class (required); hide for assignment, deadline, reminder, other
+        var showLocation = ['exam', 'class'].includes(eventType);
+        locationField.style.display = showLocation ? 'block' : 'none';
+        var locInput = document.getElementById('eventLocation');
+        locInput.required = showLocation && currentCalendarType === 'course';
+        locInput.closest('div').querySelector('label').innerHTML = showLocation && currentCalendarType === 'course' ? 'Location *' : 'Location';
+        
+        // Update modal title
+        var titles = {
+            exam: 'Add Exam',
+            assignment: 'Add Assignment',
+            deadline: 'Add Deadline',
+            class: 'Add Class',
+            reminder: 'Add Reminder',
+            other: 'Add Event'
+        };
+        document.getElementById('modalTitle').textContent = titles[eventType] || 'Add Event';
+    }
+
+    document.getElementById('eventForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        var eventType = document.getElementById('eventType').value;
+        var title = document.getElementById('eventTitle').value;
+        var courseId = document.getElementById('eventCourse').value;
+        var eventDate = document.getElementById('eventDate').value;
+        var startTime = document.getElementById('eventStartTime').value;
+        var endTime = document.getElementById('eventEndTime').value;
+        var locSel = document.getElementById('eventLocation');
+        var classroomId = locSel.value || null;
+        var location = locSel.options[locSel.selectedIndex] ? locSel.options[locSel.selectedIndex].getAttribute('data-name') || locSel.value : '';
+        var description = document.getElementById('eventDescription').value;
+        
+        // Course is required when adding to course calendar
+        if (currentCalendarType === 'course' && !courseId) {
+            alert('Please select a course.');
+            return;
+        }
+        
+        // Location required for exam and class in course calendar
+        if (currentCalendarType === 'course' && ['exam','class'].includes(eventType) && !classroomId) {
+            alert('Location is required for exam and class events.');
+            return;
+        }
+        
+        // Validate time format
+        var timePattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+            alert('Please enter valid times in 24-hour format (e.g., 09:00, 14:30)');
+            return;
+        }
+        
+        var start = combineDateTime(eventDate, startTime);
+        var end = combineDateTime(eventDate, endTime);
+        
+        // Cannot add event in the past
+        if (new Date(start) < new Date()) {
+            alert('Cannot create an event in the past.');
+            return;
+        }
+        
+        fetch('/api/calendar/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: title,
+                event_type: eventType,
+                calendar_type: currentCalendarType,
+                course_id: courseId || null,
+                start: start,
+                end: end,
+                location: location,
+                classroom_id: classroomId ? parseInt(classroomId, 10) : null,
+                description: description
+            })
+        })
+        .then(r => {
+            if (!r.ok) {
+                return r.json().then(data => { throw new Error(data.error || 'Failed to create event'); });
+            }
+            return r.json();
+        })
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            
+            var startDate = new Date(start);
+            var endDate = new Date(end);
+            var colors = eventColors[eventType] || eventColors.other;
+            
+            calendar.createEvents([{
+                id: String(data.id),
+                calendarId: 'events',
+                title: title,
+                start: startDate,
+                end: endDate,
+                location: location,
+                classroom_id: classroomId,
+                backgroundColor: colors.bg,
+                borderColor: colors.border,
+                isAllday: false,
+                category: 'time'
+            }]);
+            closeModal();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        });
+    });
+
+    function loadEvents() {
+        fetch('/api/calendar/events?type=' + currentCalendarType)
+            .then(function(r) {
+                return r.text().then(function(text) {
+                    if (!r.ok) {
+                        var msg = 'Failed to load events';
+                        try { var j = JSON.parse(text); msg = j.error || msg; } catch(e) {}
+                        throw new Error(msg);
+                    }
+                    return JSON.parse(text || '[]');
+                });
+            })
+            .then(events => {
+                console.log('Loaded events for ' + currentCalendarType + ':', events);
+                
+                if (!Array.isArray(events)) {
+                    console.error('Events is not an array:', events);
+                    return;
+                }
+                
+                var calendarEvents = events.map(function(e) {
+                    var colors = eventColors[e.event_type] || eventColors.other;
+                    var bgColor = colors.bg;
+                    var borderColor = colors.border;
+                    
+                    // Override for active/completed exams
+                    if (e.event_type === 'exam') {
+                        if (e.status === 'active') {
+                            bgColor = '#16a34a';
+                            borderColor = '#16a34a';
+                        } else if (e.status === 'completed') {
+                            bgColor = '#6b7280';
+                            borderColor = '#6b7280';
+                        }
+                    }
+                    
+                    var title = e.title;
+                    if ((e.course_display || e.course_code) && currentCalendarType !== 'personal') {
+                        title = (e.course_display || e.course_code) + ' - ' + e.title;
+                    }
+                    
+                    var startDate = new Date(e.start);
+                    var endDate = new Date(e.end);
+                    
+                    // Check for invalid dates
+                    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                        console.error('Invalid date for event:', e);
+                        return null;
+                    }
+                    
+                    var isAllDay = (startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
+                                   endDate.getHours() === 0 && endDate.getMinutes() === 0);
+                    
+                    return {
+                        id: String(e.id),
+                        calendarId: 'events',
+                        title: title,
+                        start: startDate,
+                        end: endDate,
+                        location: e.location || '',
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        isAllday: isAllDay,
+                        category: isAllDay ? 'allday' : 'time',
+                        state: 'Busy',
+                        teacher_name: e.teacher_name,
+                        event_type: e.event_type,
+                        raw: { teacher_name: e.teacher_name, event_type: e.event_type, location: e.location }
+                    };
+                }).filter(function(e) { return e !== null; });
+                
+                console.log('Creating calendar events:', calendarEvents);
+                calendar.createEvents(calendarEvents);
+            })
+            .catch(err => {
+                console.error('Error loading events:', err);
+            });
+    }
+
+    var origNext = calendar.next.bind(calendar);
+    var origPrev = calendar.prev.bind(calendar);
+    var origToday = calendar.today.bind(calendar);
+    
+    calendar.next = function() { origNext(); updateHeader(); setTimeout(scrollToTop, 100); };
+    calendar.prev = function() { origPrev(); updateHeader(); setTimeout(scrollToTop, 100); };
+    calendar.today = function() { origToday(); updateHeader(); setTimeout(scrollToTop, 100); };
+    
+    var origChangeView = calendar.changeView.bind(calendar);
+    calendar.changeView = function(view) { origChangeView(view); setTimeout(scrollToTop, 100); };
+
+    updateHeader();
+    loadEvents();
+    
+    // Scroll to top (00:00) on load and view change
+    function scrollToTop() {
+        // Find all scrollable elements and reset to top
+        document.querySelectorAll('#calendar *').forEach(function(el) {
+            if (el.scrollTop > 0) {
+                el.scrollTop = 0;
+            }
+        });
+    }
+    
+    // Multiple attempts to ensure scroll is at top
+    [100, 300, 500, 1000].forEach(function(delay) {
+        setTimeout(scrollToTop, delay);
+    });
+</script>
+{% endblock %}

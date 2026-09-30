@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Cheating Detection | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">Cheating Detection</h1>
+<p class="lead" style="margin-bottom: 2rem;">Manage exam sessions and monitoring tools</p>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('monitoring') }}" class="dashboard-card">
+        <h3>Active Monitoring</h3>
+        <p>Live cheating detection interface with video and real-time alerts.</p>
+    </a>
+    <a href="{{ url_for('report') }}" class="dashboard-card">
+        <h3>Post-Exam Reports</h3>
+        <p>Review flags, snapshots, and logs from completed exam sessions.</p>
+    </a>
+</div>
+{% endblock %}

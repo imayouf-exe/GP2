@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Login | Classroom Management{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    try {
+        var keys = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+            var k = sessionStorage.key(i);
+            if (k && k.indexOf('chatbot_') === 0) keys.push(k);
+        }
+        keys.forEach(function(k) { sessionStorage.removeItem(k); });
+    } catch (e) {}
+})();
+</script>
+{% endblock %}
+
+{% block body %}
+<main id="main-content" class="main-content" tabindex="-1" style="display: flex; align-items: center; justify-content: center; min-height: 80vh;">
+    <section class="card" style="max-width: 400px; width: 100%;">
+        <h1 style="margin-bottom: 0.5rem;">Classroom Management</h1>
+        <p class="lead" style="margin-bottom: 1.5rem;">Sign in to continue</p>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" id="email" name="email" class="form-input" placeholder="teacher@exam.com" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="Enter password" required>
+            </div>
+            {% if error %}
+            <p style="color: var(--color-danger); font-size: 0.9rem; margin-bottom: 1rem;">{{ error }}</p>
+            {% endif %}
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

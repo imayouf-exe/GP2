@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Professor Dashboard | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">{{ greeting }}, {{ session.get('user_name', 'Professor') }}!</h1>
+<p class="lead" style="margin-bottom: 2rem;">Access all system tools and functionalities</p>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('cheating_detection') }}" class="dashboard-card">
+        <h3>Cheating Detection</h3>
+        <p>Exam monitoring, AI detection features, live camera feeds, and post-exam reports.</p>
+    </a>
+    <a href="{{ url_for('chatbot') }}" class="dashboard-card">
+        <h3>Chatbot</h3>
+        <p>AI assistant for professors and students. Ask about exams, schedules, and more.</p>
+    </a>
+    <a href="{{ url_for('calendar') }}" class="dashboard-card">
+        <h3>Calendar</h3>
+        <p>View and manage exam schedules.</p>
+    </a>
+    <a href="{{ url_for('floor_map') }}" class="dashboard-card">
+        <h3>Floor Map</h3>
+        <p>View building layout and classroom availability. Click a room to reserve it or see when it's free.</p>
+    </a>
+</div>
+{% endblock %}

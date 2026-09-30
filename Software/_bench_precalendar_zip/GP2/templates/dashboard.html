@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Exam Monitor System{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">Professor Dashboard</h1>
+<p class="lead" style="margin-bottom: 2rem;">Access all system tools and functionalities</p>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('cheating_detection') }}" class="dashboard-card">
+        <h3>Cheating Detection</h3>
+        <p>Exam monitoring, AI detection features, live camera feeds, and post-exam reports.</p>
+    </a>
+    <div class="dashboard-card" style="opacity: 0.6; cursor: default; pointer-events: none;">
+        <h3>Chatbot</h3>
+        <p>Coming soon — AI assistant for professors and students.</p>
+    </div>
+    <div class="dashboard-card" style="opacity: 0.6; cursor: default; pointer-events: none;">
+        <h3>Calendar</h3>
+        <p>Coming soon — View and manage exam schedules.</p>
+    </div>
+    <div class="dashboard-card" style="opacity: 0.6; cursor: default; pointer-events: none;">
+        <h3>Floor Map</h3>
+        <p>Coming soon — Room layout and seating arrangements.</p>
+    </div>
+</div>
+{% endblock %}

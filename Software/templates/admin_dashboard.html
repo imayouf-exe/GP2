@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">{{ greeting }}, {{ session.get('user_name', 'Admin') }}!</h1>
+<p class="lead" style="margin-bottom: 2rem;">Manage users, courses, and the global calendar</p>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('admin_users') }}" class="dashboard-card">
+        <h3>Users Management</h3>
+        <p>Add teachers and students to the system with name, email, password and all required info.</p>
+    </a>
+    <a href="{{ url_for('admin_courses') }}" class="dashboard-card">
+        <h3>Course Management</h3>
+        <p>Create courses, assign teachers and sections, and enroll students.</p>
+    </a>
+    <a href="{{ url_for('admin_calendar') }}" class="dashboard-card">
+        <h3>Calendar</h3>
+        <p>View and manage the Global Calendar. Add and edit events.</p>
+    </a>
+    <a href="{{ url_for('admin_chatbot_kb') }}" class="dashboard-card">
+        <h3>Chatbot Knowledge Base</h3>
+        <p>Manage FAQ entries that the AI assistant uses to answer student and teacher questions.</p>
+    </a>
+    <a href="{{ url_for('admin_chatbot_feedback') }}" class="dashboard-card">
+        <h3>Chatbot Feedback</h3>
+        <p>Review user thumbs up/down feedback, inspect weak responses, and improve bot quality.</p>
+    </a>
+</div>
+{% endblock %}

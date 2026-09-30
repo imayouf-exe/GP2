@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 720px; margin: 2rem auto;">
+    <h1>Something went wrong</h1>
+    <p class="lead" style="margin-top: 1rem;">An unexpected error occurred. Please refresh and try again.</p>
+    <div style="margin-top: 1.25rem;">
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

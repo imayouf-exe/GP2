@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Active Monitoring | Exam Monitor{% endblock %}
+
+{% block header %}
+<header class="site-header">
+    <nav class="nav-container">
+        <a href="{{ url_for('dashboard') }}" class="logo">Exam Monitor</a>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('cheating_detection') }}" class="active">Cheating Detection</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+</header>
+{% endblock %}
+
+{% block body %}
+{% if not selected_id %}
+<main class="main-content">
+    <p style="margin-bottom: 1rem;">
+        <a href="{{ url_for('cheating_detection') }}" style="color: var(--color-text-muted); text-decoration: none;">Cheating Detection</a> › Active Monitoring
+    </p>
+    <h1 style="margin-bottom: 1.5rem;">Active Monitoring</h1>
+
+    <p class="lead" style="margin-bottom: 2rem;">Select an exam to start monitoring</p>
+
+    <button class="btn btn-secondary" style="margin-bottom: 1.5rem;" onclick="addDebugExam()">+ Add Debug Exam</button>
+
+    <div class="dashboard-grid">
+        {% for e in exams %}
+        <a href="{{ url_for('monitoring', exam_id=e.id) }}" class="dashboard-card">
+            <h3>{{ e.course_code }} — {{ e.exam_name }}</h3>
+            <p>{{ e.course_name }}</p>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <span style="font-size: 0.85rem; color: var(--color-accent);">{{ e.status }}</span>
+            </div>
+        </a>
+        {% else %}
+        <p style="color: var(--color-text-muted);">No exams available.</p>
+        {% endfor %}
+    </div>
+</main>
+{% else %}
+<div style="display: flex; flex-direction: column; flex: 1; height: calc(100vh - 65px);">
+    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); background: var(--color-surface); flex-shrink: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p style="font-size: 0.85rem; margin-bottom: 0.25rem;">
+                    <a href="{{ url_for('monitoring') }}" style="color: var(--color-text-muted); text-decoration: none;">Active Monitoring</a> › {{ exam.course_code }}
+                </p>
+                <h2 style="font-size: 1.25rem;">{{ exam.course_code }} — {{ exam.exam_name }}</h2>
+                <p id="statusText" style="font-size: 0.9rem; color: var(--color-text-muted);">Ready</p>
+            </div>
+            <button id="examBtn" class="btn btn-primary" onclick="toggleExam()">Start the Exam</button>
+        </div>
+    </div>
+
+    <div style="display: flex; flex: 1; min-height: 0;">
+        <div style="display: flex; align-items: center; justify-content: center; padding: 1rem; flex: 1; overflow: auto;">
+            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                <div id="videoPlaceholder" class="video-placeholder" style="width: 100%; height: 100%; max-height: 80vh; aspect-ratio: 16/9; font-size: 1.1rem;">
+                    Camera feed will appear here
+                </div>
+                <img id="videoFeed" src="" style="width: 100%; height: 100%; max-height: 80vh; object-fit: contain; border-radius: var(--radius); display: none; background: #000;">
+            </div>
+        </div>
+        <aside style="width: 320px; flex-shrink: 0; background: var(--color-surface); border-left: 1px solid var(--color-border); display: flex; flex-direction: column; height: 100%;">
+            <h3 style="font-size: 0.95rem; padding: 1rem; margin: 0; flex-shrink: 0; border-bottom: 1px solid var(--color-border);">Alerts</h3>
+            <div id="alertsList" style="flex: 1; overflow-y: auto; padding: 1rem;">
+                <p id="noAlerts" style="color: var(--color-text-muted); font-size: 0.9rem;">No alerts yet.</p>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not selected_id %}
+<script>
+    function addDebugExam() {
+        fetch('/api/debug/exam', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'created') {
+                alert('Debug exam created: ' + data.exam_name);
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error creating debug exam');
+        });
+    }
+</script>
+{% endif %}
+{% if selected_id %}
+<script>
+    var examRunning = false;
+    var examBtn = document.getElementById('examBtn');
+    var statusText = document.getElementById('statusText');
+    var videoFeed = document.getElementById('videoFeed');
+    var videoPlaceholder = document.getElementById('videoPlaceholder');
+    var alertsList = document.getElementById('alertsList');
+    var noAlerts = document.getElementById('noAlerts');
+    var alertInterval = null;
+    var examId = {{ exam.id }};
+
+    function toggleExam() {
+        if (!examRunning) {
+            startExam();
+        } else {
+            stopExam();
+        }
+    }
+
+    function startExam() {
+        fetch('/api/exam/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exam_id: examId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            examRunning = true;
+            examBtn.textContent = 'End the Exam';
+            examBtn.style.background = 'var(--color-danger)';
+            statusText.textContent = 'Live';
+            statusText.style.color = 'var(--color-success)';
+            
+            videoPlaceholder.style.display = 'none';
+            videoFeed.style.display = 'block';
+            videoFeed.src = '/video_feed?' + new Date().getTime();
+            
+            alertInterval = setInterval(fetchAlerts, 1000);
+        })
+        .catch(err => {
+            console.error('Error starting exam:', err);
+            alert('Error starting exam. Check console.');
+        });
+    }
+
+    function stopExam() {
+        fetch('/api/exam/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            examRunning = false;
+            examBtn.textContent = 'Start the Exam';
+            examBtn.style.background = '';
+            statusText.textContent = 'Exam ended — Video saved';
+            statusText.style.color = 'var(--color-text-muted)';
+            
+            videoFeed.style.display = 'none';
+            videoFeed.src = '';
+            videoPlaceholder.style.display = 'flex';
+            videoPlaceholder.textContent = 'Recording saved';
+            
+            if (alertInterval) {
+                clearInterval(alertInterval);
+                alertInterval = null;
+            }
+        })
+        .catch(err => {
+            console.error('Error stopping exam:', err);
+        });
+    }
+
+    function fetchAlerts() {
+        fetch('/api/alerts')
+        .then(response => response.json())
+        .then(alerts => {
+            if (alerts.length > 0) {
+                noAlerts.style.display = 'none';
+                
+                var html = '';
+                alerts.forEach(function(alert) {
+                    var dangerClass = alert.is_danger ? 'danger' : '';
+                    html += '<div class="alert-item ' + dangerClass + '">';
+                    html += '<span class="alert-time">' + alert.time + '</span>';
+                    html += '<p class="alert-text"><strong>' + alert.label + '</strong></p>';
+                    html += '</div>';
+                });
+                
+                var existingAlerts = alertsList.querySelectorAll('.alert-item');
+                existingAlerts.forEach(function(el) { el.remove(); });
+                alertsList.insertAdjacentHTML('beforeend', html);
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching alerts:', err);
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

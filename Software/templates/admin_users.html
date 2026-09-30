@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Users Management | Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="margin-bottom: 0.5rem;">Users Management</h1>
+        <p class="lead">Add teachers and students to the system</p>
+    </div>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+
+{% if error %}
+<div style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #fca5a5; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+    {{ error }}
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <!-- Add Teacher -->
+    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem;">
+        <h3 style="margin-bottom: 1rem;">Add Teacher</h3>
+        <form method="post" action="{{ url_for('admin_users') }}">
+            <input type="hidden" name="action" value="add_teacher">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Full Name *</label>
+                <input type="text" name="full_name" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Email *</label>
+                <input type="email" name="email" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password *</label>
+                <input type="password" name="password" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Department *</label>
+                <select name="department" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">-- Select Department --</option>
+                    {% for d in departments %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Office Number</label>
+                <input type="text" name="office_number" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. Room 101">
+            </div>
+            <button type="submit" class="btn">Add Teacher</button>
+        </form>
+    </div>
+
+    <!-- Add Student -->
+    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem;">
+        <h3 style="margin-bottom: 1rem;">Add Student</h3>
+        <form method="post" action="{{ url_for('admin_users') }}">
+            <input type="hidden" name="action" value="add_student">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Full Name *</label>
+                <input type="text" name="full_name" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Email *</label>
+                <input type="email" name="email" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password *</label>
+                <input type="password" name="password" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Student ID *</label>
+                <input type="text" name="student_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. STU001">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Major *</label>
+                <select name="major" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">-- Select Major --</option>
+                    {% for m in majors %}
+                    <option value="{{ m.name }}">{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Year *</label>
+                <input type="number" name="year" required min="1" max="6" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. 2">
+            </div>
+            <button type="submit" class="btn">Add Student</button>
+        </form>
+    </div>
+</div>
+
+<!-- Lists -->
+<div style="margin-top: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;">
+        <h3 style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border);">Teachers</h3>
+        <div style="max-height: 300px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Name</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Email</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Department</th>
+                        <th style="text-align: right; padding: 0.75rem 1rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers %}
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                        <td style="padding: 0.75rem 1rem;">{{ t.full_name }}</td>
+                        <td style="padding: 0.75rem 1rem; color: var(--color-text-muted);">{{ t.email }}</td>
+                        <td style="padding: 0.75rem 1rem;">{{ t.department or '—' }}</td>
+                        <td style="padding: 0.75rem 1rem; text-align: right;">
+                            <button type="button" class="btn btn-secondary edit-teacher-btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; margin-right: 0.25rem;" data-teacher-id="{{ t.id }}" data-teacher-name="{{ t.full_name }}" data-department="{{ t.department or '' }}" data-office="{{ t.office_number or '' }}">Edit</button>
+                            <form method="post" action="{{ url_for('admin_users') }}" style="display: inline;" onsubmit="return confirm('Delete this teacher? Their courses will have no teacher assigned.');">
+                                <input type="hidden" name="action" value="delete_teacher">
+                                <input type="hidden" name="teacher_id" value="{{ t.id }}">
+                                <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; background: var(--color-danger, #dc2626); color: white;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" style="padding: 1rem; color: var(--color-text-muted);">No teachers yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;">
+        <h3 style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border);">Students</h3>
+        <div style="max-height: 300px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Name</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Email</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Student ID</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Major</th>
+                        <th style="text-align: left; padding: 0.75rem 1rem;">Year</th>
+                        <th style="text-align: right; padding: 0.75rem 1rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                        <td style="padding: 0.75rem 1rem;">{{ s.full_name }}</td>
+                        <td style="padding: 0.75rem 1rem; color: var(--color-text-muted);">{{ s.email }}</td>
+                        <td style="padding: 0.75rem 1rem;">{{ s.student_id }}</td>
+                        <td style="padding: 0.75rem 1rem;">{{ s.major or '—' }}</td>
+                        <td style="padding: 0.75rem 1rem;">{{ s.year or '—' }}</td>
+                        <td style="padding: 0.75rem 1rem; text-align: right;">
+                            <button type="button" class="btn btn-secondary edit-student-btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; margin-right: 0.25rem;" data-student-id="{{ s.id }}" data-student-name="{{ s.full_name }}" data-major="{{ s.major or '' }}">Edit</button>
+                            <form method="post" action="{{ url_for('admin_users') }}" style="display: inline;" onsubmit="return confirm('Delete this student?');">
+                                <input type="hidden" name="action" value="delete_student">
+                                <input type="hidden" name="student_id" value="{{ s.id }}">
+                                <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; background: var(--color-danger, #dc2626); color: white;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="padding: 1rem; color: var(--color-text-muted);">No students yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Teacher Modal -->
+<div id="editTeacherModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--color-surface); padding: 2rem; border-radius: var(--radius); width: 100%; max-width: 450px; border: 1px solid var(--color-border);">
+        <h3 style="margin-bottom: 1rem;">Edit Teacher</h3>
+        <p id="editTeacherName" style="color: var(--color-text-muted); margin-bottom: 1rem;"></p>
+        <form method="post" action="{{ url_for('admin_users') }}">
+            <input type="hidden" name="action" value="edit_teacher">
+            <input type="hidden" name="teacher_id" id="editTeacherId">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Department *</label>
+                <select name="department" required id="editTeacherDepartment" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">-- Select Department --</option>
+                    {% for d in departments %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Office Number</label>
+                <input type="text" name="office_number" id="editTeacherOffice" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. Room 101">
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editTeacherModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div id="editStudentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--color-surface); padding: 2rem; border-radius: var(--radius); width: 100%; max-width: 450px; border: 1px solid var(--color-border);">
+        <h3 style="margin-bottom: 1rem;">Edit Student</h3>
+        <p id="editStudentName" style="color: var(--color-text-muted); margin-bottom: 1rem;"></p>
+        <form method="post" action="{{ url_for('admin_users') }}">
+            <input type="hidden" name="action" value="edit_student">
+            <input type="hidden" name="student_id" id="editStudentId">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Major *</label>
+                <select name="major" required id="editStudentMajor" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">-- Select Major --</option>
+                    {% for m in majors %}
+                    <option value="{{ m.name }}">{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editStudentModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.edit-teacher-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('editTeacherId').value = this.dataset.teacherId;
+            document.getElementById('editTeacherName').textContent = this.dataset.teacherName;
+            document.getElementById('editTeacherDepartment').value = this.dataset.department || '';
+            document.getElementById('editTeacherOffice').value = this.dataset.office || '';
+            document.getElementById('editTeacherModal').style.display = 'flex';
+        });
+    });
+    document.querySelectorAll('.edit-student-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('editStudentId').value = this.dataset.studentId;
+            document.getElementById('editStudentName').textContent = this.dataset.studentName;
+            document.getElementById('editStudentMajor').value = this.dataset.major || '';
+            document.getElementById('editStudentModal').style.display = 'flex';
+        });
+    });
+</script>
+{% endblock %}

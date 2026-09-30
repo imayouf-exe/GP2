@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Settings | Classroom Management{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 0.5rem;">Settings</h1>
+<p class="lead" style="margin-bottom: 1.5rem;">Manage your profile, security, calendar defaults, and UI preferences.</p>
+
+{% if notice %}
+<div class="settings-notice settings-notice--{{ notice_type }}">{{ notice }}</div>
+{% endif %}
+
+<div class="settings-grid">
+    <section class="card" id="profile">
+        <h3 style="margin-bottom: 0.9rem;">Profile Basics</h3>
+        <form method="post">
+            <input type="hidden" name="action" value="profile">
+
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input class="form-input" type="text" name="full_name" value="{{ user.get('full_name', '') }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Contact Email</label>
+                <input class="form-input" type="email" name="email" value="{{ user.get('email', '') }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Display Name (optional)</label>
+                <input class="form-input" type="text" name="display_name" value="{{ prefs.get('display_name') or '' }}" placeholder="How your name appears in assistant messages">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Profile Photo URL (optional)</label>
+                <input class="form-input" type="url" name="profile_photo_url" value="{{ prefs.get('profile_photo_url') or '' }}" placeholder="https://...">
+            </div>
+
+            <button class="btn btn-primary" type="submit">Save Profile</button>
+        </form>
+    </section>
+
+    <section class="card" id="security">
+        <h3 style="margin-bottom: 0.9rem;">Password & Security</h3>
+        <form method="post">
+            <input type="hidden" name="action" value="password">
+
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <div class="settings-password-row">
+                    <input class="form-input" id="currentPasswordInput" type="password" name="current_password" required>
+                    <button class="settings-password-toggle" type="button" data-target="currentPasswordInput" aria-label="Show current password">
+                        <svg class="eye-icon eye-icon--show" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M1.5 12s3.8-7 10.5-7 10.5 7 10.5 7-3.8 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        <svg class="eye-icon eye-icon--hide" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9.9 5.1A10.7 10.7 0 0 1 12 5c6.7 0 10.5 7 10.5 7a16.7 16.7 0 0 1-3.1 3.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M6.3 6.3A16.1 16.1 0 0 0 1.5 12s3.8 7 10.5 7c1.6 0 3-.4 4.4-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="settings-password-row">
+                    <input class="form-input" id="newPasswordInput" type="password" name="new_password" minlength="6" required>
+                    <button class="settings-password-toggle" type="button" data-target="newPasswordInput" aria-label="Show new password">
+                        <svg class="eye-icon eye-icon--show" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M1.5 12s3.8-7 10.5-7 10.5 7 10.5 7-3.8 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        <svg class="eye-icon eye-icon--hide" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9.9 5.1A10.7 10.7 0 0 1 12 5c6.7 0 10.5 7 10.5 7a16.7 16.7 0 0 1-3.1 3.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M6.3 6.3A16.1 16.1 0 0 0 1.5 12s3.8 7 10.5 7c1.6 0 3-.4 4.4-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <div class="settings-password-row">
+                    <input class="form-input" id="confirmPasswordInput" type="password" name="confirm_password" minlength="6" required>
+                    <button class="settings-password-toggle" type="button" data-target="confirmPasswordInput" aria-label="Show confirm password">
+                        <svg class="eye-icon eye-icon--show" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M1.5 12s3.8-7 10.5-7 10.5 7 10.5 7-3.8 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        <svg class="eye-icon eye-icon--hide" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 3l18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9.9 5.1A10.7 10.7 0 0 1 12 5c6.7 0 10.5 7 10.5 7a16.7 16.7 0 0 1-3.1 3.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M6.3 6.3A16.1 16.1 0 0 0 1.5 12s3.8 7 10.5 7c1.6 0 3-.4 4.4-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Update Password</button>
+        </form>
+    </section>
+
+    <section class="card" id="calendar-defaults">
+        <h3 style="margin-bottom: 0.9rem;">Calendar Defaults</h3>
+        <form method="post">
+            <input type="hidden" name="action" value="calendar">
+
+            <div class="form-group">
+                <label class="form-label">Default Calendar View</label>
+                <select class="form-input" name="calendar_default_view">
+                    <option value="month" {% if (prefs.get('calendar_default_view') or 'month') == 'month' %}selected{% endif %}>Month</option>
+                    <option value="week" {% if (prefs.get('calendar_default_view') or 'month') == 'week' %}selected{% endif %}>Week</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Time Format</label>
+                <select class="form-input" name="calendar_time_format">
+                    <option value="12h" {% if (prefs.get('calendar_time_format') or '12h') == '12h' %}selected{% endif %}>12-hour</option>
+                    <option value="24h" {% if (prefs.get('calendar_time_format') or '12h') == '24h' %}selected{% endif %}>24-hour</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Save Calendar Defaults</button>
+        </form>
+    </section>
+
+    <section class="card" id="ui-preferences">
+        <h3 style="margin-bottom: 0.9rem;">UI Preferences</h3>
+        <form method="post">
+            <input type="hidden" name="action" value="ui">
+
+            <div class="form-group">
+                <label class="form-label">Theme</label>
+                <select class="form-input" name="ui_theme">
+                    <option value="dark" {% if (prefs.get('ui_theme') or 'dark') == 'dark' %}selected{% endif %}>Dark</option>
+                    <option value="light" {% if (prefs.get('ui_theme') or 'dark') == 'light' %}selected{% endif %}>Light</option>
+                    <option value="system" {% if (prefs.get('ui_theme') or 'dark') == 'system' %}selected{% endif %}>System</option>
+                </select>
+            </div>
+
+            <div class="form-group settings-checkbox-row">
+                <label class="form-label" style="margin-bottom: 0;">Reduce Motion</label>
+                <input type="checkbox" name="ui_reduced_motion" value="1" {% if (prefs.get('ui_reduced_motion') or 0)|int == 1 %}checked{% endif %}>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Save UI Preferences</button>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var toggles = document.querySelectorAll('.settings-password-toggle');
+    toggles.forEach(function(toggle) {
+        toggle.addEventListener('click', function() {
+            var input = document.getElementById(toggle.getAttribute('data-target'));
+            if (!input) return;
+            var nextType = input.type === 'password' ? 'text' : 'password';
+            input.type = nextType;
+            var showing = nextType === 'text';
+            toggle.classList.toggle('is-visible', showing);
+            toggle.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+        });
+    });
+})();
+</script>
+{% endblock %}

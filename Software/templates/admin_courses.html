@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Course Management | Admin{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="margin-bottom: 0.5rem;">Course Management</h1>
+        <p class="lead">Create courses, assign teachers and sections, enroll students</p>
+    </div>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+
+{% if error %}
+<div style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--color-danger); color: #fca5a5; padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem;">
+    {{ error }}
+</div>
+{% endif %}
+
+<!-- Add Course -->
+<div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Add Course</h3>
+    <form method="post" action="{{ url_for('admin_courses') }}" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+        <input type="hidden" name="action" value="add_course">
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course Code *</label>
+            <input type="text" name="course_code" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. CS101">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course Name *</label>
+            <input type="text" name="course_name" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. Intro to Programming">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Section *</label>
+            <input type="number" name="section_number" value="1" min="1" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Teacher *</label>
+            <select name="teacher_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                <option value="">-- Select --</option>
+                {% for t in selectable_teachers %}
+                <option value="{{ t.id }}">{{ t.full_name }} ({{ t.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Semester *</label>
+            <input type="text" name="semester" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);" placeholder="e.g. Fall 2025">
+        </div>
+        <button type="submit" class="btn">Add Course</button>
+    </form>
+</div>
+
+<!-- Enroll Student in Course -->
+<div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Enroll Student in Course</h3>
+    <form method="post" action="{{ url_for('admin_courses') }}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem;">
+        <input type="hidden" name="action" value="enroll">
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course</label>
+            <select name="course_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                <option value="">-- Select Course --</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.course_code }} - Section {{ c.section_number|default(1) }} - {{ c.course_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Student</label>
+            <select name="student_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                <option value="">-- Select Student --</option>
+                {% for s in students %}
+                <option value="{{ s.id }}">{{ s.student_id }} - {{ s.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn">Enroll</button>
+    </form>
+    <p style="font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 0.75rem;">Or enroll by Student ID:</p>
+    <form method="post" action="{{ url_for('admin_courses') }}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+        <input type="hidden" name="action" value="enroll_by_id">
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course</label>
+            <select name="course_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                <option value="">-- Select Course --</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.course_code }} - Section {{ c.section_number|default(1) }} - {{ c.course_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Student ID</label>
+            <input type="text" name="student_id_str" required placeholder="e.g. STU001" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+        </div>
+        <button type="submit" class="btn">Enroll by ID</button>
+    </form>
+</div>
+
+<!-- Remove Student from Course by ID -->
+<div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Remove Student from Course (by Student ID)</h3>
+    <form method="post" action="{{ url_for('admin_courses') }}" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+        <input type="hidden" name="action" value="unenroll_by_id">
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Course</label>
+            <select name="course_id" required style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                <option value="">-- Select Course --</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.course_code }} - Section {{ c.section_number|default(1) }} - {{ c.course_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Student ID</label>
+            <input type="text" name="student_id_str" required placeholder="e.g. STU001" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+        </div>
+        <button type="submit" class="btn" style="background: var(--color-danger, #dc2626); color: white;">Remove</button>
+    </form>
+</div>
+
+<!-- Courses List with Enrolled Students -->
+<div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;">
+    <h3 style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border);">Courses & Enrollments</h3>
+    <div style="max-height: 400px; overflow-y: auto;">
+        {% for c in courses %}
+        <div style="border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <strong>{{ c.course_code }} - {{ c.course_name }} (Section {{ c.section_number|default(1) }})</strong>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span style="color: var(--color-text-muted); font-size: 0.9rem;">Teacher: {{ c.teacher_name }}</span>
+                    <button type="button" class="btn btn-secondary edit-course-btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" data-course-id="{{ c.id }}" data-course-name="{{ c.course_code }} - {{ c.course_name }}" data-teacher-id="{{ c.teacher_id or '' }}">Edit</button>
+                    <form method="post" action="{{ url_for('admin_courses') }}" style="display: inline;" onsubmit="return confirm('Delete this course? All enrollments and exams will be removed.');">
+                        <input type="hidden" name="action" value="delete_course">
+                        <input type="hidden" name="course_id" value="{{ c.id }}">
+                        <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; background: var(--color-danger, #dc2626); color: white;">Delete</button>
+                    </form>
+                </div>
+            </div>
+            <div style="font-size: 0.9rem;">
+                <span style="color: var(--color-text-muted);">Enrolled: </span>
+                {% if course_enrollments.get(c.id) %}
+                {% for enr in course_enrollments[c.id] %}
+                <span style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--color-bg); padding: 0.25rem 0.5rem; border-radius: 6px; margin: 0.25rem 0.25rem 0 0;">
+                    {{ enr.sid }} - {{ enr.full_name }}
+                    <form method="post" action="{{ url_for('admin_courses') }}" style="display: inline; margin: 0;">
+                        <input type="hidden" name="action" value="unenroll">
+                        <input type="hidden" name="course_id" value="{{ c.id }}">
+                        <input type="hidden" name="student_id" value="{{ enr.student_id }}">
+                        <button type="submit" style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.85rem; padding: 0 0.25rem;" title="Remove">×</button>
+                    </form>
+                </span>
+                {% endfor %}
+                {% else %}
+                <span style="color: var(--color-text-muted);">None</span>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div style="padding: 1.5rem; color: var(--color-text-muted);">No courses yet. Add a course above.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Edit Course Modal -->
+<div id="editCourseModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--color-surface); padding: 2rem; border-radius: var(--radius); width: 100%; max-width: 450px; border: 1px solid var(--color-border);">
+        <h3 style="margin-bottom: 1rem;">Edit Course Teacher</h3>
+        <p id="editCourseName" style="color: var(--color-text-muted); margin-bottom: 1rem;"></p>
+        <form method="post" action="{{ url_for('admin_courses') }}" id="editCourseForm">
+            <input type="hidden" name="action" value="edit_course">
+            <input type="hidden" name="course_id" id="editCourseId">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Teacher</label>
+                <select name="teacher_id" id="editTeacherId" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);">
+                    <option value="">None</option>
+                    {% for t in selectable_teachers %}
+                    <option value="{{ t.id }}">{{ t.full_name }} ({{ t.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('editCourseModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.edit-course-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var cid = this.dataset.courseId;
+            var name = this.dataset.courseName;
+            var teacherId = this.dataset.teacherId;
+            document.getElementById('editCourseId').value = cid;
+            document.getElementById('editCourseName').textContent = name;
+            document.getElementById('editTeacherId').value = teacherId;
+            document.getElementById('editCourseModal').style.display = 'flex';
+        });
+    });
+</script>
+{% endblock %}

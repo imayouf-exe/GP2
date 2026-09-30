@@ -1,0 +1,80 @@
+/* Loaded after Toast UI — day / week / month cell hover glow */
+
+#calendar .toastui-calendar-daygrid-cell {
+    transition: box-shadow 0.22s ease, z-index 0.15s ease;
+    border-radius: 6px;
+}
+
+#calendar .toastui-calendar-daygrid-cell:hover {
+    z-index: 3;
+    box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.55),
+        0 0 18px rgba(59, 130, 246, 0.32),
+        0 0 36px rgba(59, 130, 246, 0.12);
+}
+
+#calendar .toastui-calendar-timegrid .toastui-calendar-column {
+    position: relative;
+    transition: box-shadow 0.22s ease;
+}
+
+#calendar .toastui-calendar-timegrid .toastui-calendar-column:hover {
+    z-index: 2;
+    box-shadow:
+        inset 0 0 0 1px rgba(59, 130, 246, 0.5),
+        0 0 22px rgba(59, 130, 246, 0.22);
+}
+
+#calendar .toastui-calendar-allday-panel .toastui-calendar-column:hover {
+    box-shadow:
+        inset 0 0 0 1px rgba(59, 130, 246, 0.45),
+        0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+body.ui-reduced-motion #calendar .toastui-calendar-daygrid-cell,
+body.ui-reduced-motion #calendar .toastui-calendar-timegrid .toastui-calendar-column {
+    transition: none;
+}
+
+body.theme-light #calendar .toastui-calendar-daygrid-cell:hover,
+body.theme-light #calendar .toastui-calendar-timegrid .toastui-calendar-column:hover {
+    box-shadow:
+        0 0 0 1px rgba(37, 99, 235, 0.45),
+        0 0 16px rgba(37, 99, 235, 0.2);
+}
+
+/* Month: events layer must paint above day cells so bars receive the pointer first */
+#calendar .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-events {
+    z-index: 10;
+    position: relative;
+}
+
+/* Easier event clicks: Toast UI month rows are 26px (24px bar + 2px gap); fill the row.
+   clickEvent fires from mousedown on .toastui-calendar-weekday-event — it must stay targetable. */
+#calendar .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-event-block {
+    z-index: 1;
+}
+
+#calendar .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-event-block:hover {
+    z-index: 6;
+}
+
+/* Resize handle steals narrow bars; month resize is rarely needed vs opening details */
+#calendar .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-resize-handle {
+    display: none !important;
+}
+
+#calendar .toastui-calendar-layout.toastui-calendar-month
+    .toastui-calendar-weekday-event-block
+    .toastui-calendar-weekday-event {
+    height: 26px !important;
+    min-height: 26px !important;
+    line-height: 26px !important;
+    box-sizing: border-box;
+}
+
+/* Time grid: narrow events sit under neighbors; raise on hover so the whole bar is easier to hit */
+#calendar .toastui-calendar-timegrid .toastui-calendar-event-time:hover {
+    z-index: 12 !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+}

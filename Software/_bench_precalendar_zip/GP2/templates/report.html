@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Post-Exam Report | Exam Monitor{% endblock %}
+
+{% block content %}
+<p style="margin-bottom: 1rem;">
+    <a href="{{ url_for('cheating_detection') }}" style="color: var(--color-text-muted); text-decoration: none;">Cheating Detection</a> › Post-Exam Reports
+</p>
+<h1 style="margin-bottom: 1.5rem;">Post-Exam Reports</h1>
+
+{% if not selected_id %}
+<p class="lead" style="margin-bottom: 2rem;">Select an exam to review the recording and alerts</p>
+
+<div class="dashboard-grid">
+    {% for exam in exams %}
+    <a href="{{ url_for('report', exam_id=exam.id) }}" class="dashboard-card">
+        <h3>{{ exam.course_code }} — {{ exam.exam_name }}</h3>
+        <p>{{ exam.course_name }}</p>
+        <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--color-text-muted);">{{ exam.date_recorded }}</span>
+        </div>
+    </a>
+    {% else %}
+    <p style="color: var(--color-text-muted);">No completed exams yet.</p>
+    {% endfor %}
+</div>
+
+{% else %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <a href="{{ url_for('report') }}" style="color: var(--color-accent); text-decoration: none; font-size: 0.9rem;">← Back to all exams</a>
+        <h2 style="margin-top: 0.5rem;">{{ current_exam.course_code }} — {{ current_exam.exam_name }}</h2>
+        <p style="color: var(--color-text-muted);">{{ current_exam.date_recorded }}</p>
+    </div>
+    <div style="text-align: right;">
+        <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.5rem;">Evidence auto-deletes in:</p>
+        <p id="deleteTimer" style="font-size: 1.5rem; font-weight: 700; color: var(--color-warning);">29:59:45</p>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+            <button id="extendBtn" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;" onclick="extendTimer()">Extend 5 days</button>
+            <button class="btn" style="font-size: 0.85rem; padding: 0.5rem 1rem; background: var(--color-danger); color: white;" onclick="deleteVideo()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div class="monitoring-body" style="display: flex; gap: 1rem; min-height: 500px;">
+    <div class="layout-main" style="display: flex; align-items: flex-start; justify-content: center; padding: 1rem;">
+        <div style="width: 100%; max-width: 800px;">
+            {% if current_exam.video_filepath %}
+            <video controls style="width: 100%; border-radius: var(--radius);">
+                <source src="{{ url_for('serve_recording', filename=current_exam.video_filepath.split('/')[-1]) }}" type="video/mp4">
+                Your browser does not support video playback.
+            </video>
+            {% else %}
+            <div class="video-placeholder" style="aspect-ratio: 16/9; font-size: 1.1rem;">
+                No recording available
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <aside class="alert-sidebar" style="min-width: 300px;">
+        <h3 style="font-size: 0.95rem; margin-bottom: 1rem;">Detected Alerts</h3>
+        <div id="alertsList">
+            {% if alerts %}
+            {% for alert in alerts %}
+            <div class="alert-item" style="cursor: pointer;" onclick="jumpToTime({{ alert.timestamp_seconds }})">
+                <span class="alert-time">{{ "%.1f"|format(alert.timestamp_seconds) }}s</span>
+                <p class="alert-text"><strong>{{ alert.alert_type }}</strong></p>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color: var(--color-text-muted); font-size: 0.9rem;">No alerts detected.</p>
+            {% endif %}
+        </div>
+    </aside>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var examId = {{ selected_id if selected_id else 'null' }};
+    var timerSeconds = 0;
+    
+    function formatTimer(seconds) {
+        if (seconds <= 0) return 'Expired';
+        var days = Math.floor(seconds / (24 * 60 * 60));
+        var hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+        var minutes = Math.floor((seconds % (60 * 60)) / 60);
+        var secs = Math.floor(seconds % 60);
+        
+        var display = '';
+        if (days > 0) display += days + 'd ';
+        display += String(hours).padStart(2, '0') + ':';
+        display += String(minutes).padStart(2, '0') + ':';
+        display += String(secs).padStart(2, '0');
+        return display;
+    }
+    
+    function updateTimerDisplay() {
+        var timerEl = document.getElementById('deleteTimer');
+        if (timerEl) {
+            timerEl.textContent = formatTimer(timerSeconds);
+            var days = timerSeconds / (24 * 60 * 60);
+            if (days < 7) {
+                timerEl.style.color = 'var(--color-danger)';
+            } else {
+                timerEl.style.color = 'var(--color-warning)';
+            }
+        }
+        
+        timerSeconds--;
+        if (timerSeconds >= 0) {
+            setTimeout(updateTimerDisplay, 1000);
+        }
+    }
+    
+    function loadExpiration() {
+        if (!examId) return;
+        fetch('/api/exam/' + examId + '/expiration')
+            .then(r => r.json())
+            .then(data => {
+                if (data.expires_in_seconds !== null) {
+                    timerSeconds = data.expires_in_seconds;
+                    updateTimerDisplay();
+                } else {
+                    document.getElementById('deleteTimer').textContent = 'No expiration set';
+                }
+            });
+    }
+    
+    function extendTimer() {
+        if (!examId) return;
+        fetch('/api/exam/' + examId + '/extend', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: 5})
+        })
+        .then(r => r.json())
+        .then(data => {
+            timerSeconds = data.expires_in_seconds;
+            var timerEl = document.getElementById('deleteTimer');
+            if (timerEl) timerEl.style.color = 'var(--color-warning)';
+            alert('Timer extended by 5 days!');
+        });
+    }
+    
+    function jumpToTime(time) {
+        var video = document.querySelector('video');
+        if (video) {
+            video.currentTime = parseFloat(time);
+            video.play();
+        }
+    }
+    
+    function deleteVideo() {
+        if (!examId) return;
+        if (confirm('Are you sure you want to permanently delete this exam and its recording? This action cannot be undone.')) {
+            fetch('/api/exam/' + examId + '/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert('Exam deleted.');
+                window.location.href = '{{ url_for("report") }}';
+            });
+        }
+    }
+    
+    if (document.getElementById('deleteTimer')) {
+        loadExpiration();
+    }
+</script>
+{% endblock %}

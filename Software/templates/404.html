@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 720px; margin: 2rem auto;">
+    <h1>Page not found</h1>
+    <p class="lead" style="margin-top: 1rem;">The page you requested does not exist or has moved.</p>
+    <div style="margin-top: 1.25rem;">
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
